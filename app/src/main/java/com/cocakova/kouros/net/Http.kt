@@ -22,7 +22,9 @@ object Http {
     val ktor: HttpClient by lazy {
         HttpClient(OkHttp) {
             engine { preconfigured = okhttp }
-            install(WebSockets) { maxFrameSize = 64L * 1024 * 1024 }
+            // No maxFrameSize: the OkHttp engine refuses the setting and fails every socket with
+            // "Max frame size switch is not supported" (OkHttp has no frame limit to raise anyway).
+            install(WebSockets)
             install(HttpTimeout) {
                 connectTimeoutMillis = 10_000
                 requestTimeoutMillis = 120_000
