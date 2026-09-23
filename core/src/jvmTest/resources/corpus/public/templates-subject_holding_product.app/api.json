@@ -1,0 +1,102 @@
+{
+ "10": {
+  "inputs": {
+   "image": "subject-elderly-lady-portrait.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Subject Image"
+  }
+ },
+ "11": {
+  "inputs": {
+   "image": "product-toothbrush.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Product Image"
+  }
+ },
+ "15": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "17",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "17": {
+  "inputs": {
+   "prompt": "The subject from image 1 is holding the product from image 2, the product logo is visible.",
+   "model": "gemini-3-pro-image-preview",
+   "seed": 983525498427854,
+   "aspect_ratio": "auto",
+   "resolution": "2K",
+   "response_modalities": "IMAGE+TEXT",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "18:19",
+    0
+   ]
+  },
+  "class_type": "GeminiImage2Node",
+  "_meta": {
+   "title": "Nano Banana Pro (Google Gemini Image)"
+  }
+ },
+ "18:13": {
+  "inputs": {
+   "target_width": [
+    "18:12",
+    0
+   ],
+   "target_height": [
+    "18:12",
+    1
+   ],
+   "padding_color": "white",
+   "interpolation": "area",
+   "image": [
+    "11",
+    0
+   ]
+  },
+  "class_type": "ResizeAndPadImage",
+  "_meta": {
+   "title": "Resize And Pad Image"
+  }
+ },
+ "18:12": {
+  "inputs": {
+   "image": [
+    "10",
+    0
+   ]
+  },
+  "class_type": "GetImageSize",
+  "_meta": {
+   "title": "Get Image Size"
+  }
+ },
+ "18:19": {
+  "inputs": {
+   "images.image0": [
+    "10",
+    0
+   ],
+   "images.image1": [
+    "18:13",
+    0
+   ]
+  },
+  "class_type": "BatchImagesNode",
+  "_meta": {
+   "title": "Batch Images"
+  }
+ }
+}

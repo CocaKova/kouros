@@ -1,0 +1,179 @@
+{
+ "1": {
+  "inputs": {
+   "image": "game_style.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Style Reference"
+  }
+ },
+ "2": {
+  "inputs": {
+   "image": "gas_lamp.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Sprite Reference"
+  }
+ },
+ "3": {
+  "inputs": {
+   "filename_prefix": "texture_alpha",
+   "images": [
+    "4",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save texture with alpha"
+  }
+ },
+ "4": {
+  "inputs": {
+   "image": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "RecraftRemoveBackgroundNode",
+  "_meta": {
+   "title": "Recraft Remove Background"
+  }
+ },
+ "5": {
+  "inputs": {
+   "filename_prefix": "texture",
+   "images": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save texture"
+  }
+ },
+ "7": {
+  "inputs": {
+   "compare_view": {
+    "__value__": [
+     "",
+     ""
+    ]
+   },
+   "image_a": [
+    "2",
+    0
+   ],
+   "image_b": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "ImageCompare",
+  "_meta": {
+   "title": "Compare Images"
+  }
+ },
+ "8": {
+  "inputs": {
+   "prompt": [
+    "21",
+    0
+   ],
+   "model": "gemini-3-pro-image-preview",
+   "seed": 605332021762553,
+   "aspect_ratio": "1:1",
+   "resolution": "1K",
+   "response_modalities": "IMAGE",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "16",
+    0
+   ]
+  },
+  "class_type": "GeminiImage2Node",
+  "_meta": {
+   "title": "Nano Banana Pro (Google Gemini Image)"
+  }
+ },
+ "16": {
+  "inputs": {
+   "images.image0": [
+    "2",
+    0
+   ],
+   "images.image1": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "BatchImagesNode",
+  "_meta": {
+   "title": "Batch Images"
+  }
+ },
+ "17": {
+  "inputs": {
+   "string_a": [
+    "19",
+    0
+   ],
+   "string_b": [
+    "22",
+    0
+   ],
+   "delimiter": ""
+  },
+  "class_type": "StringConcatenate",
+  "_meta": {
+   "title": "Concatenate Text"
+  }
+ },
+ "19": {
+  "inputs": {
+   "value": "strictly preserve the composition and outline of image 1. Reskin image 1 as "
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Text (Multiline)"
+  }
+ },
+ "20": {
+  "inputs": {
+   "value": " and restyle into the style of image 2. Black background"
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Text (Multiline)"
+  }
+ },
+ "21": {
+  "inputs": {
+   "string_a": [
+    "17",
+    0
+   ],
+   "string_b": [
+    "20",
+    0
+   ],
+   "delimiter": ""
+  },
+  "class_type": "StringConcatenate",
+  "_meta": {
+   "title": "Concatenate Text"
+  }
+ },
+ "22": {
+  "inputs": {
+   "value": "copper gas lamp"
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Object Prompt"
+  }
+ }
+}

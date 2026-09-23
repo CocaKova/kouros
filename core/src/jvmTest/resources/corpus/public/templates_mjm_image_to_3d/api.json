@@ -1,0 +1,183 @@
+{
+ "1": {
+  "inputs": {
+   "image": "templates_mjm_image_to_3d.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Image"
+  }
+ },
+ "2": {
+  "inputs": {
+   "prompt": "Create a side shot from this image, do not change the pose and lighting\n\nNo background",
+   "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+   "seed": 138687889823595,
+   "aspect_ratio": "1:1",
+   "resolution": "2K",
+   "response_modalities": "IMAGE",
+   "thinking_level": "HIGH",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GeminiNanoBanana2",
+  "_meta": {
+   "title": "Nano Banana 2"
+  }
+ },
+ "4": {
+  "inputs": {
+   "prompt": "Create a rear shot from this image, do not change the pose and lighting\n\nNo background",
+   "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+   "seed": 226226946819998,
+   "aspect_ratio": "1:1",
+   "resolution": "2K",
+   "response_modalities": "IMAGE",
+   "thinking_level": "HIGH",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GeminiNanoBanana2",
+  "_meta": {
+   "title": "Nano Banana 2"
+  }
+ },
+ "6": {
+  "inputs": {
+   "images.image0": [
+    "23",
+    0
+   ],
+   "images.image1": [
+    "2",
+    0
+   ],
+   "images.image2": [
+    "4",
+    0
+   ]
+  },
+  "class_type": "BatchImagesNode",
+  "_meta": {
+   "title": "Batch Images"
+  }
+ },
+ "7": {
+  "inputs": {
+   "model_version": "v3.0-20250812",
+   "style": "person:person2cartoon",
+   "texture": true,
+   "pbr": true,
+   "model_seed": 42,
+   "orientation": "default",
+   "texture_seed": 42,
+   "texture_quality": "detailed",
+   "texture_alignment": "geometry",
+   "face_limit": -1,
+   "quad": false,
+   "geometry_quality": "standard",
+   "smart_low_poly": false,
+   "auto_size": true,
+   "image": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "TripoImageToModelNode",
+  "_meta": {
+   "title": "Tripo: Image to Model (Legacy)"
+  }
+ },
+ "23": {
+  "inputs": {
+   "prompt": "Remove the background",
+   "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+   "seed": 80526614165305,
+   "aspect_ratio": "1:1",
+   "resolution": "2K",
+   "response_modalities": "IMAGE",
+   "thinking_level": "HIGH",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GeminiNanoBanana2",
+  "_meta": {
+   "title": "Nano Banana 2"
+  }
+ },
+ "24": {
+  "inputs": {
+   "model_file": [
+    "7",
+    0
+   ],
+   "image": ""
+  },
+  "class_type": "Preview3D",
+  "_meta": {
+   "title": "Preview 3D & Animation (DEPRECATED)"
+  }
+ },
+ "25": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "23",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "26": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "2",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "27": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "4",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "28": {
+  "inputs": {
+   "filename_prefix": "3d/tripo_image2model",
+   "image": "",
+   "mesh": [
+    "7",
+    2
+   ]
+  },
+  "class_type": "SaveGLB",
+  "_meta": {
+   "title": "Save 3D Model"
+  }
+ }
+}

@@ -1,0 +1,138 @@
+{
+ "1": {
+  "inputs": {
+   "image": "input_style_1.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Style Image 1"
+  }
+ },
+ "6": {
+  "inputs": {
+   "style": "realistic_image",
+   "images.image0": [
+    "1",
+    0
+   ],
+   "images.image1": [
+    "23",
+    0
+   ],
+   "images.image2": [
+    "24",
+    0
+   ],
+   "images.image3": [
+    "25",
+    0
+   ],
+   "images.image4": [
+    "26",
+    0
+   ]
+  },
+  "class_type": "RecraftCreateStyleNode",
+  "_meta": {
+   "title": "Recraft Create Style"
+  }
+ },
+ "7": {
+  "inputs": {
+   "style_id": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "RecraftStyleV3InfiniteStyleLibrary",
+  "_meta": {
+   "title": "Recraft - Infinite Style Library"
+  }
+ },
+ "8": {
+  "inputs": {
+   "source": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview Recraft Style ID"
+  }
+ },
+ "23": {
+  "inputs": {
+   "image": "input_style_2.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Style Image 2"
+  }
+ },
+ "24": {
+  "inputs": {
+   "image": "input_style_3.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Style Image 3"
+  }
+ },
+ "25": {
+  "inputs": {
+   "image": "input_style_4.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Style Image 4"
+  }
+ },
+ "26": {
+  "inputs": {
+   "image": "input_style_5.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Style Image 5"
+  }
+ },
+ "37": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-t2i_style_transfer",
+   "images": [
+    "45",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "41": {
+  "inputs": {
+   "style_id": "COPY PASTE STYLE ID HERE AND CONNECT"
+  },
+  "class_type": "RecraftStyleV3InfiniteStyleLibrary",
+  "_meta": {
+   "title": "Recraft - Infinite Style Library (Manual)"
+  }
+ },
+ "45": {
+  "inputs": {
+   "prompt": "extreme wide shot of an grand colosseum, dynamic angled composition",
+   "size": "1024x1024",
+   "n": 1,
+   "seed": 0,
+   "recraft_style": [
+    "7",
+    0
+   ]
+  },
+  "class_type": "RecraftTextToImageNode",
+  "_meta": {
+   "title": "Recraft V3 Text to Image"
+  }
+ }
+}

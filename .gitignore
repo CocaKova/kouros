@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+.kotlin/
+
+# Local configuration (signing keys live here — never commit)
+local.properties
+
+# Private test corpus: your own workflows, never published
+core/src/jvmTest/resources/corpus/private/
+core/src/jvmTest/resources/corpus/templates/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Misc
+.DS_Store
+captures/
+dist/
+*.apk
+*.aab

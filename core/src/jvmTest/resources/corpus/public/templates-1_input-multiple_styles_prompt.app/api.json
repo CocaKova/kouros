@@ -1,0 +1,383 @@
+{
+ "1": {
+  "inputs": {
+   "image": "lightning_man.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Image"
+  }
+ },
+ "2": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into pixel art, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 578855243,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "3": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-pixel_art",
+   "images": [
+    "2",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "4": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into 3d animation, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 952362773,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "5": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-3d",
+   "images": [
+    "4",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "6": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into claymation, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 1318521263,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "7": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-claymation",
+   "images": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "10": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into hyper realistic, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 564446120,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "11": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-realistic",
+   "images": [
+    "10",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "12": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into cross stitch, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 179849328,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "13": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-cross_stitch",
+   "images": [
+    "12",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "14": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into oil painting with visible brushstrokes, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 683307388,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "15": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-oil_painting",
+   "images": [
+    "14",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "16": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into detailed colored pencil, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 1401154920,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "17": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-colored_pencil",
+   "images": [
+    "16",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "18": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into flat vector illustration, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 472402139,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "19": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-vector",
+   "images": [
+    "18",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "20": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into reflective metal sculpture, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 1887853646,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "21": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-metal",
+   "images": [
+    "20",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "22": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into charcoal sketch, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 427630705,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "23": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-charcoal",
+   "images": [
+    "22",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "24": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into lineart, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 40701395,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "25": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-lineart",
+   "images": [
+    "24",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "26": {
+  "inputs": {
+   "model": "grok-imagine-image",
+   "prompt": "Change the images style into watercolor, maintain identity",
+   "resolution": "1K",
+   "number_of_images": 1,
+   "seed": 111512004,
+   "aspect_ratio": "auto",
+   "image": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "GrokImageEditNode",
+  "_meta": {
+   "title": "Grok Image Edit"
+  }
+ },
+ "27": {
+  "inputs": {
+   "filename_prefix": "ComfyUI-watercolor",
+   "images": [
+    "26",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ }
+}

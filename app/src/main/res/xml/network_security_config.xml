@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ComfyUI servers commonly live on a LAN or a tailnet over plain http. Cleartext is permitted
+     at the platform level; the app itself decides, per server, whether a plain-http URL is
+     acceptable (private addresses only, or an explicit opt-in) and warns otherwise. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -1,0 +1,41 @@
+{
+ "12": {
+  "inputs": {
+   "file": "dad_carry_daughter.mp4"
+  },
+  "class_type": "LoadVideo",
+  "_meta": {
+   "title": "Load Video"
+  }
+ },
+ "13": {
+  "inputs": {
+   "filename_prefix": "video/ComfyUI",
+   "format": "auto",
+   "format.codec": "auto",
+   "codec": "auto",
+   "video": [
+    "14",
+    0
+   ]
+  },
+  "class_type": "SaveVideo",
+  "_meta": {
+   "title": "Save Video"
+  }
+ },
+ "14": {
+  "inputs": {
+   "model": "General Restore Model (2x)",
+   "model.resolution": "1080p",
+   "video": [
+    "12",
+    0
+   ]
+  },
+  "class_type": "HitPawVideoEnhance",
+  "_meta": {
+   "title": "HitPaw Video Enhance"
+  }
+ }
+}

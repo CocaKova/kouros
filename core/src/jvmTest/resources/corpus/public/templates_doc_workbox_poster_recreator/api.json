@@ -1,0 +1,86 @@
+{
+ "3": {
+  "inputs": {
+   "image": "reference_poster.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Image"
+  }
+ },
+ "4": {
+  "inputs": {
+   "filename_prefix": "Poster_maker",
+   "images": [
+    "25",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "25": {
+  "inputs": {
+   "prompt": [
+    "26",
+    0
+   ],
+   "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+   "seed": 935249916317050,
+   "aspect_ratio": "auto",
+   "resolution": "2K",
+   "response_modalities": "IMAGE",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "3",
+    0
+   ]
+  },
+  "class_type": "GeminiImage2Node",
+  "_meta": {
+   "title": "Nano Banana Pro (Google Gemini Image)"
+  }
+ },
+ "26": {
+  "inputs": {
+   "switch": false,
+   "on_false": [
+    "27",
+    0
+   ],
+   "on_true": [
+    "28",
+    0
+   ]
+  },
+  "class_type": "ComfySwitchNode",
+  "_meta": {
+   "title": "If/Else Switch"
+  }
+ },
+ "27": {
+  "inputs": {
+   "string_a": "You are a master poster designer. Refer to the style, color and font style of the pictures I uploaded, and transform them into a realistic real person style to design a poster with visual impact and artistry. Change the posture, face and clothing of the character. The main title font should be artistic, mainly white and large, and try not to cover the character's face. Without referring to the watermark LOGO and the tiny text, the following is the content of the poster：",
+   "string_b": [
+    "28",
+    0
+   ],
+   "delimiter": ""
+  },
+  "class_type": "StringConcatenate",
+  "_meta": {
+   "title": "Concatenate Text"
+  }
+ },
+ "28": {
+  "inputs": {
+   "value": "Imitate any style, \nrecreate any poster."
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Prompt"
+  }
+ }
+}

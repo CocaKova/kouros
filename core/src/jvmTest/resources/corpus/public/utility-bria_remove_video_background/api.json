@@ -1,0 +1,41 @@
+{
+ "122": {
+  "inputs": {
+   "background_color": "Black",
+   "seed": 2039714199,
+   "video": [
+    "123",
+    0
+   ]
+  },
+  "class_type": "BriaRemoveVideoBackground",
+  "_meta": {
+   "title": "Bria Remove Video Background"
+  }
+ },
+ "123": {
+  "inputs": {
+   "file": "prince_and_phoenix.mp4"
+  },
+  "class_type": "LoadVideo",
+  "_meta": {
+   "title": "Load Video"
+  }
+ },
+ "124": {
+  "inputs": {
+   "filename_prefix": "video/Bria_remove_background",
+   "format": "auto",
+   "format.codec": "auto",
+   "codec": "auto",
+   "video": [
+    "122",
+    0
+   ]
+  },
+  "class_type": "SaveVideo",
+  "_meta": {
+   "title": "Save Video"
+  }
+ }
+}

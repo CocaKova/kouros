@@ -1,0 +1,174 @@
+{
+ "4": {
+  "inputs": {
+   "image": "comfy_logo_b.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Logo Image"
+  }
+ },
+ "5": {
+  "inputs": {
+   "image1": [
+    "4",
+    0
+   ],
+   "image2": [
+    "15",
+    0
+   ]
+  },
+  "class_type": "ImageBatch",
+  "_meta": {
+   "title": "Batch Images (DEPRECATED)"
+  }
+ },
+ "6": {
+  "inputs": {
+   "prompt": "Display the back view of the input image 1, maintain the lighting angle and shadows",
+   "model": "gemini-2.5-flash-image",
+   "seed": 222,
+   "aspect_ratio": "auto",
+   "response_modalities": "IMAGE+TEXT",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "7",
+    0
+   ]
+  },
+  "class_type": "GeminiImageNode",
+  "_meta": {
+   "title": "Nano Banana (Google Gemini Image)"
+  }
+ },
+ "7": {
+  "inputs": {
+   "prompt": "Apply the texture from the matcap in image 2 into the logo from image 1. The logotype is in a 3d studio setting, match the lighting from the matcap",
+   "model": "gemini-3-pro-image-preview",
+   "seed": 111,
+   "aspect_ratio": "1:1",
+   "resolution": "1K",
+   "response_modalities": "IMAGE+TEXT",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "5",
+    0
+   ]
+  },
+  "class_type": "GeminiImage2Node",
+  "_meta": {
+   "title": "Nano Banana Pro (Google Gemini Image)"
+  }
+ },
+ "10": {
+  "inputs": {
+   "model": "seedance-1-0-pro-250528",
+   "prompt": "A logo rotates 180 degrees against a white studio background. The logo has a sleek, modern design. The camera remains static, focusing on the logo as it completes a half rotation. The logo's material remains constant throughout the rotation.",
+   "resolution": "1080p",
+   "aspect_ratio": "adaptive",
+   "duration": 5,
+   "seed": 1014447163,
+   "camera_fixed": true,
+   "watermark": false,
+   "generate_audio": false,
+   "first_frame": [
+    "7",
+    0
+   ],
+   "last_frame": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "ByteDanceFirstLastFrameNode",
+  "_meta": {
+   "title": "ByteDance First-Last-Frame to Video"
+  }
+ },
+ "11": {
+  "inputs": {
+   "filename_prefix": "video/ComfyUI",
+   "format": "auto",
+   "format.codec": "auto",
+   "codec": "auto",
+   "video": [
+    "10",
+    0
+   ]
+  },
+  "class_type": "SaveVideo",
+  "_meta": {
+   "title": "Save Video"
+  }
+ },
+ "13": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "7",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "14": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ },
+ "15": {
+  "inputs": {
+   "target_width": [
+    "16",
+    0
+   ],
+   "target_height": [
+    "16",
+    1
+   ],
+   "padding_color": "white",
+   "interpolation": "area",
+   "image": [
+    "17",
+    0
+   ]
+  },
+  "class_type": "ResizeAndPadImage",
+  "_meta": {
+   "title": "Resize And Pad Image"
+  }
+ },
+ "16": {
+  "inputs": {
+   "image": [
+    "4",
+    0
+   ]
+  },
+  "class_type": "GetImageSize",
+  "_meta": {
+   "title": "Get Image Size"
+  }
+ },
+ "17": {
+  "inputs": {
+   "image": "logotype_texture.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Texture Image"
+  }
+ }
+}

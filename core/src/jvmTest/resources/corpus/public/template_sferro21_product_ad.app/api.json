@@ -1,0 +1,68 @@
+{
+ "1": {
+  "inputs": {
+   "image": "golf_ball_in_crocodile_mouth.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Image"
+  }
+ },
+ "2": {
+  "inputs": {
+   "image": "comfy_hat.png"
+  },
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "Load Image"
+  }
+ },
+ "3": {
+  "inputs": {
+   "images.image0": [
+    "1",
+    0
+   ],
+   "images.image1": [
+    "2",
+    0
+   ]
+  },
+  "class_type": "BatchImagesNode",
+  "_meta": {
+   "title": "Batch Images"
+  }
+ },
+ "4": {
+  "inputs": {
+   "prompt": "Have the male character wearing this white visor. Keep the male character and the rest of the image the exact same. Change the golf ball to a cheeseburger",
+   "model": "gemini-3-pro-image-preview",
+   "seed": 395352856159957,
+   "aspect_ratio": "16:9",
+   "resolution": "2K",
+   "response_modalities": "IMAGE",
+   "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.",
+   "images": [
+    "3",
+    0
+   ]
+  },
+  "class_type": "GeminiImage2Node",
+  "_meta": {
+   "title": "Nano Banana Pro (Google Gemini Image)"
+  }
+ },
+ "5": {
+  "inputs": {
+   "filename_prefix": "ComfyUI",
+   "images": [
+    "4",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "Save Image"
+  }
+ }
+}

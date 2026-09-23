@@ -1,0 +1,236 @@
+{
+ "2": {
+  "inputs": {
+   "value": "1"
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Text (Multiline)"
+  }
+ },
+ "3": {
+  "inputs": {
+   "value": [
+    "2",
+    0
+   ]
+  },
+  "class_type": "ComfyNumberConvert",
+  "_meta": {
+   "title": "Convert Number"
+  }
+ },
+ "5": {
+  "inputs": {
+   "source": [
+    "3",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (Float)"
+  }
+ },
+ "6": {
+  "inputs": {
+   "source": [
+    "3",
+    1
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (Int)"
+  }
+ },
+ "8": {
+  "inputs": {
+   "value": 0
+  },
+  "class_type": "PrimitiveInt",
+  "_meta": {
+   "title": "Int"
+  }
+ },
+ "9": {
+  "inputs": {
+   "source": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text"
+  }
+ },
+ "10": {
+  "inputs": {
+   "value": 1.5
+  },
+  "class_type": "PrimitiveFloat",
+  "_meta": {
+   "title": "Float"
+  }
+ },
+ "11": {
+  "inputs": {
+   "source": [
+    "10",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text"
+  }
+ },
+ "12": {
+  "inputs": {
+   "source": [
+    "9",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text"
+  }
+ },
+ "13": {
+  "inputs": {
+   "source": [
+    "11",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (String)"
+  }
+ },
+ "14": {
+  "inputs": {
+   "expression": "a",
+   "values.a": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "ComfyMathExpression",
+  "_meta": {
+   "title": "Math Expression"
+  }
+ },
+ "15": {
+  "inputs": {
+   "source": [
+    "14",
+    2
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text"
+  }
+ },
+ "16": {
+  "inputs": {
+   "source": [
+    "14",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text"
+  }
+ },
+ "17": {
+  "inputs": {
+   "source": [
+    "14",
+    1
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text"
+  }
+ },
+ "18": {
+  "inputs": {
+   "expression": "a",
+   "values.a": [
+    "10",
+    0
+   ]
+  },
+  "class_type": "ComfyMathExpression",
+  "_meta": {
+   "title": "Math Expression"
+  }
+ },
+ "20": {
+  "inputs": {
+   "source": [
+    "18",
+    0
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (Float)"
+  }
+ },
+ "21": {
+  "inputs": {
+   "source": [
+    "18",
+    1
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (Int)"
+  }
+ },
+ "22": {
+  "inputs": {
+   "source": [
+    "18",
+    2
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (Boolean)"
+  }
+ },
+ "23": {
+  "inputs": {
+   "expression": "a",
+   "values.a": [
+    "3",
+    1
+   ]
+  },
+  "class_type": "ComfyMathExpression",
+  "_meta": {
+   "title": "Math Expression"
+  }
+ },
+ "24": {
+  "inputs": {
+   "source": [
+    "23",
+    2
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Preview as Text (Boolean)"
+  }
+ }
+}
