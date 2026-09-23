@@ -13,7 +13,9 @@ import kotlin.test.assertTrue
 class ReferencesTest {
     private val oi = ObjectInfo.parse(Json.parseToJsonElement("""
     {
-      "Enc": {"input": {"required": {"prompt": ["STRING", {}],
+      "VAELoader": {"input": {"required": {"vae_name": [["v.safetensors"], {}]}}, "output": ["VAE"], "output_node": false},
+      "VAEDecode": {"input": {"required": {"samples": ["LATENT", {}], "vae": ["VAE", {}]}}, "output": ["IMAGE"], "output_node": false},
+      "Enc": {"input": {"optional": {"vae": ["VAE", {}]}, "required": {"prompt": ["STRING", {}],
                  "images": ["COMFY_AUTOGROW_V3", {"template": {"input": {"required": {"image": ["IMAGE", {}]}}, "names": ["image_1","image_2","image_3"], "min": 0}}]}},
               "output": ["CONDITIONING"], "output_node": false},
       "Plus": {"input": {"required": {"prompt": ["STRING", {}]}, "optional": {"image1": ["IMAGE", {}], "image2": ["IMAGE", {}], "image3": ["IMAGE", {}]}},
@@ -28,7 +30,9 @@ class ReferencesTest {
       "1": {"class_type": "LoadImage", "inputs": {"image": "a.png"}},
       "2": {"class_type": "Enc", "inputs": {"prompt": "x", "images.image_1": ["1", 0]}},
       "3": {"class_type": "Plus", "inputs": {"prompt": "y", "image1": ["1", 0]}},
-      "4": {"class_type": "Batch", "inputs": {}}
+      "4": {"class_type": "Batch", "inputs": {}},
+      "5": {"class_type": "VAELoader", "inputs": {"vae_name": "v.safetensors"}},
+      "6": {"class_type": "VAEDecode", "inputs": {"samples": ["9", 0], "vae": ["5", 0]}}
     }""").jsonObject
 
     @Test
@@ -52,6 +56,8 @@ class ReferencesTest {
         assertEquals("[\"kouros_ref_2\",0]", (enc["images.image_3"] as JsonArray).toString())
         val plus = (out["3"] as JsonObject)["inputs"] as JsonObject
         assertEquals("[\"kouros_ref_1\",0]", plus["image2"].toString())
+        // The encoder only splices references in with a VAE: it gets the one the decoder uses.
+        assertEquals("[\"5\",0]", enc["vae"].toString())
         // A third photo has nowhere to go on a two-slot node; the loader exists but stays unwired.
         assertTrue(plus.keys.none { (plus[it] as? JsonArray)?.toString()?.contains("kouros_ref_3") == true })
     }
