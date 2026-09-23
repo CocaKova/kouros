@@ -96,7 +96,11 @@ class RunCoordinator(private val app: PygmalionApp) {
 
         // Attach the UI workflow the way the desktop does, so the server's history (and the
         // metadata embedded in saved images) can reopen it in the desktop editor.
-        val extra = workflowForHistory?.let { buildJsonObject { put("extra_pnginfo", buildJsonObject { put("workflow", it) }) } }
+        val extra = buildJsonObject {
+            workflowForHistory?.let { put("extra_pnginfo", buildJsonObject { put("workflow", it) }) }
+            // Ask for live previews on this prompt, whatever the server was launched with.
+            com.cocakova.pygmalion.data.Settings.previewMethod.takeIf { it != "default" }?.let { put("preview_method", it) }
+        }
         return try {
             when (val r = session.client.submit(prompt, session.server.clientId, promptId, extra)) {
                 is SubmitResult.Accepted -> {

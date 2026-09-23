@@ -12,6 +12,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+tasks.withType<Test>().configureEach {
+    // Live end-to-end test: PYG_LIVE_SERVER=http://host:8188 PYG_LIVE_WORKFLOW=path/to/workflow.json
+    listOf("PYG_LIVE_SERVER", "PYG_LIVE_WORKFLOW", "PYG_LIVE_PROMPT").forEach { k -> System.getenv(k)?.let { environment(k, it) } }
+}
+
 kotlin {
     jvmToolchain(17)
     jvm()
@@ -28,6 +33,10 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.ktor.client.mock)
+        }
+        jvmTest.dependencies {
+            // The opt-in live test talks to a real server.
+            implementation(libs.ktor.client.okhttp)
         }
     }
 }
