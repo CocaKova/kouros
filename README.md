@@ -26,6 +26,11 @@ password of its own, so never forward its port to the internet.
 
 ## What makes it different
 
+- **Apps.** One-purpose tools on their own tab: a photo in, a knob or two, a button. **Upscale 4×**
+  enlarges without diffusion; **SUPIR restore** rebuilds real detail as it enlarges. Each card says
+  what your server is still missing — node pack, model files, gigabytes — and sets it up for you
+  where it can: models through the bridge, node packs through ComfyUI-Manager, then a restart.
+  An app is data (a prompt, a form arrangement, a list of what it needs), not code.
 - **Any workflow, as it is.** Subgraphs, bypassed and muted nodes, reroutes, primitive nodes,
   dynamic inputs — Kouros compiles saved workflows the same way the ComfyUI frontend does, and
   is tested against the frontend's own output on hundreds of real workflows (see

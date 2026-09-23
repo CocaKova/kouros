@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Queue
@@ -58,9 +59,10 @@ import android.net.Uri
 
 private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
-private val tabRoutes = setOf("workflows", "gallery", "queue", "servers")
+private val tabRoutes = setOf("apps", "workflows", "gallery", "queue", "servers")
 
 private val tabs = listOf(
+    Tab("apps", "Apps", Icons.Outlined.Apps),
     Tab("workflows", "Workflows", Icons.Outlined.ViewAgenda),
     Tab("gallery", "Gallery", Icons.Outlined.PhotoLibrary),
     Tab("queue", "Activity", Icons.Outlined.Queue),
@@ -92,7 +94,7 @@ val PendingAddServer = kotlinx.coroutines.flow.MutableStateFlow(false)
  * reopening it.
  */
 private fun NavHostController.tab(route: String) = navigate(route) {
-    popUpTo("workflows") { saveState = true }
+    popUpTo("apps") { saveState = true }
     launchSingleTop = true; restoreState = true
 }
 
@@ -139,7 +141,7 @@ fun KourosRoot() {
         },
     ) { pad ->
         NavHost(
-            nav, startDestination = "workflows",
+            nav, startDestination = "apps",
             // Tabs cross-fade; screens pushed on top rise a little as they arrive.
             enterTransition = {
                 if (targetState.destination.route in tabRoutes) fadeIn(tween(220))
@@ -152,6 +154,13 @@ fun KourosRoot() {
                 else fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 24 }
             },
         ) {
+            composable("apps") {
+                com.cocakova.kouros.ui.apps.AppsScreen(
+                    pad,
+                    onOpen = { key -> nav.navigate("run/${Uri.encode(key)}") },
+                    onAddServer = { PendingAddServer.value = true; nav.tab("servers") },
+                )
+            }
             composable("workflows") {
                 WorkflowsScreen(
                     pad,
@@ -169,7 +178,7 @@ fun KourosRoot() {
             composable("templates") {
                 com.cocakova.kouros.ui.workflows.TemplatesScreen(
                     onBack = { nav.popBackStack() },
-                    onOpen = { key -> nav.navigate("run/${Uri.encode(key)}") { popUpTo("workflows") } },
+                    onOpen = { key -> nav.navigate("run/${Uri.encode(key)}") { popUpTo("templates") { inclusive = true } } },
                 )
             }
             composable("gallery") { GalleryScreen(pad) { s, p, i -> nav.navigate("result/$s/$p/$i") } }
@@ -178,7 +187,7 @@ fun KourosRoot() {
             }
             composable("console/{server}") { e -> com.cocakova.kouros.ui.servers.ConsoleScreen(e.arguments!!.getString("server")!!, onBack = { nav.popBackStack() }) }
             composable("servers") {
-                ServersScreen(pad, onSettings = { nav.navigate("settings") }, onConsole = { nav.navigate("console/$it") }, onFirstServer = { nav.tab("workflows") })
+                ServersScreen(pad, onSettings = { nav.navigate("settings") }, onConsole = { nav.navigate("console/$it") }, onFirstServer = { nav.tab("apps") })
             }
             composable("settings") { com.cocakova.kouros.ui.settings.SettingsScreen(onBack = { nav.popBackStack() }) }
             composable(

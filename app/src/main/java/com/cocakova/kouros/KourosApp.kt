@@ -35,6 +35,7 @@ class KourosApp : Application(), SingletonImageLoader.Factory {
     val notifier: Notifier by lazy { Notifier(this) }
     val runs: RunCoordinator by lazy { RunCoordinator(this) }
     val workflows: com.cocakova.kouros.data.WorkflowRepo by lazy { com.cocakova.kouros.data.WorkflowRepo(this) }
+    val apps: com.cocakova.kouros.data.AppRepo by lazy { com.cocakova.kouros.data.AppRepo(this) }
     val media: com.cocakova.kouros.media.MediaStoreSaver by lazy { com.cocakova.kouros.media.MediaStoreSaver(this) }
     val library: com.cocakova.kouros.data.MediaManager by lazy { com.cocakova.kouros.data.MediaManager(this) }
 

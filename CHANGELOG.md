@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0 — 2026-09-23
+
+- **Apps.** A new first tab: one-purpose tools built on a workflow — a photo in, one or two knobs,
+  a button. **Upscale 4×** enlarges without diffusion, in seconds and with little memory.
+  **SUPIR restore** rebuilds real detail as it enlarges, for photos that need more than sharpening.
+- **Setting an app up is one button.** Each card says what this server is still missing — a node
+  pack, model files and how many gigabytes. Kouros fetches the models through the bridge, asks
+  ComfyUI-Manager to install the pack, and restarts the server so it can see it. A server with
+  neither is told plainly what to install by hand, with the link.
+- **Apps are data, not code.** An app is a prompt, a form arrangement and a list of what it needs;
+  nothing about any node pack is compiled in. The server's own `/object_info` and model folders
+  decide whether an app is ready.
+- **The button says what it does.** "Restore" on SUPIR, "Upscale" on the upscaler, "Run" everywhere else.
+
 ## 1.0.1 — 2026-09-23
 
 - **Tracks are presented as tracks.** A music result used to be a black rectangle with a filename:

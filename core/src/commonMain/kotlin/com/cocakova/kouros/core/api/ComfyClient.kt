@@ -3,6 +3,7 @@ package com.cocakova.kouros.core.api
 import com.cocakova.kouros.core.ws.BinaryFrame
 import com.cocakova.kouros.core.ws.WsEvent
 import com.cocakova.kouros.core.ws.WsTextParser
+import com.cocakova.kouros.core.ws.bool
 import com.cocakova.kouros.core.ws.dbl
 import com.cocakova.kouros.core.ws.obj
 import com.cocakova.kouros.core.ws.str
@@ -34,6 +35,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -259,6 +261,52 @@ class ComfyClient(private val http: HttpClient, val endpoint: ServerEndpoint) {
                 error = o.str("error"),
             )
         } ?: emptyList()
+
+    // ---- ComfyUI-Manager: the one way a server installs node packs for itself ----
+
+    /** The manager's version, when the server runs it (`/api/manager/version`); null when not. */
+    suspend fun managerVersion(): String? = runCatching {
+        val r = http.get(endpoint.http("/api/manager/version")) { auth() }
+        if (!r.status.isSuccess()) return null
+        r.bodyAsText().trim().trim('"').takeIf { it.isNotBlank() }
+    }.getOrNull()
+
+    /**
+     * Asks the manager to install a node pack from [repository] and starts its queue. The
+     * manager applies its own security policy — a server set to refuse outside code says no,
+     * and this returns false rather than pretending. The pack registers after a restart.
+     */
+    suspend fun installNodePack(id: String, title: String, repository: String): Boolean {
+        val body = buildJsonObject {
+            put("id", id)
+            put("title", title)
+            put("version", "unknown")
+            put("selected_version", "unknown")
+            putJsonArray("files") { add(repository) }
+            put("install_type", "git-clone")
+            putJsonArray("pip") {}
+            put("channel", "default")
+            put("mode", "cache")
+            put("ui_id", id)
+        }
+        if (!postJson("/api/manager/queue/install", body).status.isSuccess()) return false
+        return http.post(endpoint.http("/api/manager/queue/start")) { auth() }.status.isSuccess()
+    }
+
+    /** How far the manager's install queue has got. */
+    suspend fun managerQueue(): ManagerQueue? = runCatching {
+        val o = getJson("/api/manager/queue/status") as? JsonObject ?: return null
+        ManagerQueue(
+            total = o.dbl("total_count")?.toInt() ?: 0,
+            done = o.dbl("done_count")?.toInt() ?: 0,
+            inProgress = o.dbl("in_progress_count")?.toInt() ?: 0,
+            processing = o.bool("is_processing") == true,
+        )
+    }.getOrNull()
+
+    /** Restarts the server so a freshly installed pack registers (manager only). */
+    suspend fun restartServer(): Boolean =
+        runCatching { postJson("/api/manager/reboot", JsonObject(emptyMap())).status.isSuccess() }.getOrDefault(false)
 
     /** The server's template gallery (`/templates/index.json`); empty when its frontend has none. */
     suspend fun templates(): List<TemplateEntry> =
