@@ -2,6 +2,7 @@ package com.cocakova.kouros.core.form
 
 import com.cocakova.kouros.core.api.InputDef
 import com.cocakova.kouros.core.api.ObjectInfo
+import com.cocakova.kouros.core.compile.NodeAdapters
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -24,8 +25,11 @@ import kotlinx.serialization.json.put
  * utilities that output IMAGE (batching, stitching) are not reference lists.
  */
 class References(val slots: List<Slot>) {
-    /** One free slot: [input] is the prompt key ("images.image_2"), [label] what the model calls it. */
-    data class Slot(val nodeId: String, val classType: String, val input: String, val label: String, val ordinal: Int)
+    /**
+     * One free slot: [input] is the prompt key ("images.image_2"), [label] its name for people,
+     * [token] how the prompt refers to it ("<image2>" where the model has a convention).
+     */
+    data class Slot(val nodeId: String, val classType: String, val input: String, val label: String, val ordinal: Int, val token: String = label)
 
     /** Every node with free slots, each receiving the references in order (a positive/negative encoder pair both get them). */
     val byNode: Map<String, List<Slot>> get() = slots.groupBy { it.nodeId }
@@ -34,7 +38,12 @@ class References(val slots: List<Slot>) {
     val capacity: Int get() = byNode.values.maxOfOrNull { it.size } ?: 0
 
     /** The name the model gives the i-th added photo — what to write in the prompt ("image 2"). */
-    fun labelFor(i: Int): String? = byNode.values.maxByOrNull { it.size }?.getOrNull(i)?.label
+    fun labelFor(i: Int): String? = slotFor(i)?.label
+
+    /** What to write in the prompt for the i-th added photo. */
+    fun tokenFor(i: Int): String? = slotFor(i)?.token
+
+    private fun slotFor(i: Int): Slot? = byNode.values.maxByOrNull { it.size }?.getOrNull(i)
 
     /**
      * The prompt with [files] (server input paths, as an upload returns them) wired into the free
@@ -63,8 +72,12 @@ class References(val slots: List<Slot>) {
     companion object {
         private val NUMBERED = Regex("""^(.*?)(\d+)$""")
 
-        fun of(prompt: JsonObject, objectInfo: ObjectInfo): References {
+        fun of(prompt: JsonObject, objectInfo: ObjectInfo, adapters: NodeAdapters = NodeAdapters.DEFAULT): References {
             val slots = mutableListOf<Slot>()
+            fun slot(id: String, cls: String, key: String, name: String, ordinal: Int): Slot {
+                val token = adapters.referenceTokens[cls]?.replace("{n}", Regex("""\d+$""").find(name)?.value ?: "${ordinal + 1}")
+                return Slot(id, cls, key, humanize(name), ordinal, token ?: humanize(name))
+            }
             for ((id, v) in prompt) {
                 val node = v as? JsonObject ?: continue
                 val cls = (node["class_type"] as? JsonPrimitive)?.contentOrNull ?: continue
@@ -76,7 +89,7 @@ class References(val slots: List<Slot>) {
                     growableImageNames(input)?.let { names ->
                         names.forEach { n ->
                             val key = "${input.name}.$n"
-                            if (key !in used) slots += Slot(id, cls, key, humanize(n), ordinal)
+                            if (key !in used) slots += slot(id, cls, key, n, ordinal)
                             ordinal++
                         }
                     }
@@ -87,7 +100,7 @@ class References(val slots: List<Slot>) {
                     .filterValues { it.size >= 2 }
                 for ((_, group) in numbered) {
                     group.sortedBy { NUMBERED.find(it.name)!!.groupValues[2].toInt() }.forEach { i ->
-                        if (i.optional && i.name !in used) slots += Slot(id, cls, i.name, humanize(i.name), ordinal)
+                        if (i.optional && i.name !in used) slots += slot(id, cls, i.name, i.name, ordinal)
                         ordinal++
                     }
                 }

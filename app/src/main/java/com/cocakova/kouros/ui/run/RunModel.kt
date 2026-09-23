@@ -235,6 +235,14 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         _uploading.update { it - slot }
     }
 
+    /** Appends [token] to the main prompt (the first positive prompt field). */
+    fun insertIntoPrompt(token: String) {
+        val st = _state.value as? RunScreenState.Ready ?: return
+        val f = st.form.all.firstOrNull { it.role == com.cocakova.kouros.core.form.FieldRole.PROMPT } ?: return
+        val cur = (st.values[f.key] as? JsonPrimitive)?.contentOrNull ?: ""
+        set(f, JsonPrimitive(if (cur.isBlank()) token else cur.trimEnd() + " " + token))
+    }
+
     fun removeReference(index: Int) {
         _state.update { st ->
             if (st !is RunScreenState.Ready) st else st.copy(refs = st.refs.filterIndexed { i, _ -> i != index }).let { it.copy(issues = validate(it)) }

@@ -39,6 +39,9 @@ class ReferencesTest {
         assertTrue("4" !in r.byNode) // an image utility, not a reference list
         assertEquals(2, r.capacity)
         assertEquals("image 2", r.labelFor(0))
+        assertEquals("image 2", r.tokenFor(0)) // no convention known for this node: its name
+        val ruled = References.of(prompt, oi, com.cocakova.kouros.core.compile.NodeAdapters.parse("""{"referenceTokens": {"Enc": "<image{n}>"}}"""))
+        assertEquals("<image2>", ruled.tokenFor(0))
     }
 
     @Test

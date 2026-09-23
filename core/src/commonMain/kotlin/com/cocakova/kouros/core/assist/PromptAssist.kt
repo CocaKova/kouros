@@ -46,6 +46,10 @@ data class AssistRequest(
     val models: List<String> = emptyList(),
     /** The other prompt of the pair (the negative when enhancing the positive, and vice versa). */
     val counterpart: String? = null,
+    /** How the prompt names each attached reference photo ("<image1>", "<image2>"), in order. */
+    val references: List<String> = emptyList(),
+    /** Whether the model does anything with a negative prompt (it doesn't at CFG 1). */
+    val negativeActive: Boolean = true,
 )
 
 sealed interface AssistUpdate {
@@ -182,6 +186,12 @@ class PromptAssist(private val http: HttpClient, val endpoint: AssistEndpoint) {
             req.counterpart?.takeIf { it.isNotBlank() }?.let {
                 append("\nFor reference, the ${if (req.negative) "positive prompt" else "negative prompt"}:\n$it\n")
             }
+            if (req.references.isNotEmpty()) {
+                append("\nReference photos are attached to the model as ${req.references.joinToString(", ")}. ")
+                append("You can't see them; the instruction or current prompt says what each shows. ")
+                append("Refer to each by that exact name and say what to take from it (\"the phone from ${req.references.first()}\").\n")
+            }
+            if (req.negative && !req.negativeActive) append("\nNote: this model runs at CFG 1, so it ignores the negative prompt; keep it short.\n")
             if (req.instruction.isNotBlank()) append("\nInstruction: ${req.instruction.trim()}\n")
         }
 

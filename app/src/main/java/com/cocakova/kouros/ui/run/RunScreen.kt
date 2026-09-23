@@ -205,6 +205,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                             st, session, uploading = uploading.count { it.startsWith("ref:") },
                             onAdd = { pickRefs.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                             onRemove = { model.removeReference(it) },
+                            onInsert = { model.insertIntoPrompt(it) },
                             modifier = Modifier.padding(vertical = 10.dp),
                         )
                     }
@@ -263,6 +264,9 @@ private fun assistRequest(st: RunScreenState.Ready, f: FormField): AssistRequest
         outputKind = st.traits?.primary?.noun,
         models = st.traits?.models.orEmpty().take(8),
         counterpart = text(counterpart),
+        references = st.refs.indices.mapNotNull { st.references.tokenFor(it) },
+        // Samplers skip the negative pass entirely at CFG 1.
+        negativeActive = st.form.all.firstOrNull { it.spec.name == "cfg" }?.let { (st.values[it.key] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull() != 1.0 } ?: true,
     )
 }
 
@@ -277,6 +281,7 @@ private fun ReferenceStrip(
     uploading: Int,
     onAdd: () -> Unit,
     onRemove: (Int) -> Unit,
+    onInsert: (String) -> Unit,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -301,7 +306,11 @@ private fun ReferenceStrip(
                         ) { Icon(Icons.Outlined.Close, "Remove", Modifier.padding(4.dp)) }
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text(st.references.labelFor(i) ?: "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // The name the prompt uses for this photo; tap to write it into the prompt.
+                    val token = st.references.tokenFor(i) ?: ""
+                    Surface(onClick = { onInsert(token) }, shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
+                        Text(token, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                    }
                 }
             }
             if (uploading > 0) items(uploading) {
@@ -324,8 +333,8 @@ private fun ReferenceStrip(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            if (st.refs.isEmpty()) "Add photos for the model to work from. Refer to them in the prompt by name — \"${st.references.labelFor(0) ?: "image 1"}\"."
-            else "Refer to them in the prompt by the names under each photo.",
+            if (st.refs.isEmpty()) "Add photos for the model to work from, then refer to each in the prompt by its name, like ${st.references.tokenFor(0) ?: "image 1"}."
+            else "Name each photo in the prompt to say what it is for (\"the phone from ${st.references.tokenFor(0)}\"). Tap a name to add it.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
