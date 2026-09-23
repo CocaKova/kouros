@@ -49,6 +49,24 @@ object Outputs {
         return items
     }
 
+    /**
+     * The order a person should meet a run's outputs in: the thing they asked for first.
+     *
+     * Some workflows hand back working notes beside the result — YuE2's ABC plan, a PreviewAny
+     * dump — and filed in node order those can land in front of the music. Media leads, loose
+     * files follow, text last. Leftover previews of an image already shown are dropped.
+     * Callers that index into a run's outputs (the gallery's tiles, the viewer's pager) must all
+     * go through this, or a tile opens the wrong page.
+     */
+    fun forViewing(items: List<OutputItem>): List<OutputItem> =
+        items.filter { !it.isTemp || it.kind != MediaKind.IMAGE }.sortedBy { rank(it.kind) }
+
+    private fun rank(kind: MediaKind) = when (kind) {
+        MediaKind.IMAGE, MediaKind.ANIMATED, MediaKind.VIDEO, MediaKind.AUDIO, MediaKind.MODEL3D -> 0
+        MediaKind.FILE -> 1
+        MediaKind.TEXT -> 2
+    }
+
     fun kindOf(key: String, entry: JsonObject?, filename: String, animated: Boolean = false): MediaKind {
         val format = (entry?.get("format") as? JsonPrimitive)?.contentOrNull.orEmpty()
         byExtension(filename)?.let { ext ->

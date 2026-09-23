@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -455,10 +456,23 @@ private fun Stage(progress: RunProgress?, lastRunId: String?, workflowKey: Strin
                 .clickable(enabled = !running && lastDone != null, onClickLabel = "Open the last result") { lastDone?.let { onOpenResult(it.promptId) } },
             contentAlignment = Alignment.Center,
         ) {
-            val finishedOutput = lastDone?.let { r -> RunCoordinator.decodeOutputs(r.outputsJson).firstOrNull { it.kind == MediaKind.IMAGE || it.kind == MediaKind.ANIMATED || it.kind == MediaKind.VIDEO } }
+            val finishedOutput = lastDone?.let { r ->
+                com.cocakova.kouros.core.api.Outputs.forViewing(RunCoordinator.decodeOutputs(r.outputsJson))
+                    .firstOrNull { it.kind == MediaKind.IMAGE || it.kind == MediaKind.ANIMATED || it.kind == MediaKind.VIDEO || it.kind == MediaKind.AUDIO }
+            }
             when {
                 running && preview != null -> Crossfade(preview, animationSpec = tween(350), label = "preview") { bmp ->
                     bmp?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                }
+                // A track has no thumbnail: say what was made and that tapping plays it.
+                !running && finishedOutput?.kind == MediaKind.AUDIO -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Outlined.GraphicEq, null, tint = Accent.clay, modifier = Modifier.size(56.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        finishedOutput.file?.filename ?: "Track", style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp),
+                    )
+                    Text("Tap to listen", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 !running && finishedOutput?.file != null -> {
                     val session = remember(lastDone) { lastDone?.serverId }
