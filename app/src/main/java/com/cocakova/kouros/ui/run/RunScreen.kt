@@ -166,7 +166,16 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                 title = {
                     Column {
                         Text(ready?.workflow?.name ?: "", style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        ready?.let { SourceLine(it.template.source) }
+                        ready?.let { r ->
+                            val spec = r.appSpec
+                            if (spec != null) {
+                                Text(
+                                    spec.tagline, style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                            } else SourceLine(r.template.source)
+                        }
                     }
                 },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
@@ -199,6 +208,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                 busy = busy,
                 running = progress != null && !progress.phase.isTerminal,
                 issues = ready.issues,
+                action = ready.appSpec?.action ?: "Run",
                 onRun = { n -> runWithNotifications(n) },
                 onCancel = { model.cancel() },
             )
@@ -552,7 +562,15 @@ private fun UnsureNote(modifier: Modifier) {
 }
 
 @Composable
-private fun RunBar(busy: Boolean, running: Boolean, issues: List<PromptValidator.Issue>, onRun: (Int) -> Unit, onCancel: () -> Unit) {
+private fun RunBar(
+    busy: Boolean,
+    running: Boolean,
+    issues: List<PromptValidator.Issue>,
+    /** What the button says when nothing is running — an app names its own verb ("Restore"). */
+    action: String,
+    onRun: (Int) -> Unit,
+    onCancel: () -> Unit,
+) {
     var count by remember { mutableIntStateOf(1) }
     val haptics = LocalHapticFeedback.current
     Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp) {
@@ -582,7 +600,10 @@ private fun RunBar(busy: Boolean, running: Boolean, issues: List<PromptValidator
                 colors = ButtonDefaults.buttonColors(containerColor = Accent.clay, contentColor = MaterialTheme.colorScheme.background),
             ) {
                 if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.background)
-                else Text(if (running) (if (count > 1) "Queue $count" else "Queue") else if (count > 1) "Run $count" else "Run", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                else Text(
+                    if (running) (if (count > 1) "Queue $count" else "Queue") else if (count > 1) "$action $count" else action,
+                    style = MaterialTheme.typography.titleMedium, maxLines = 1,
+                )
             }
         }
     }

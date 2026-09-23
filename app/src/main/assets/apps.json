@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "id": "upscale-4x",
+      "title": "Upscale 4×",
+      "tagline": "Sharp enlargement, seconds, no diffusion",
+      "action": "Upscale",
+      "icon": "upscale",
+      "kind": "IMAGE",
+      "about": "A plain upscaling network: it enlarges four times and sharpens what is already there, without inventing detail. Fast, light on memory, and safe to run while the machine is busy with something else. For a photo that needs detail brought back rather than enlarged, use SUPIR restore.",
+      "packs": [],
+      "models": [
+        {
+          "name": "4x-UltraSharp.pth",
+          "directory": "upscale_models",
+          "url": "https://huggingface.co/uwg/upscaler/resolve/main/ESRGAN/4x-UltraSharp.pth",
+          "size": 66961958
+        }
+      ],
+      "form": {
+        "pinned": ["1:image", "2:model_name"],
+        "labels": {
+          "1:image": "Photo",
+          "2:model_name": "Upscaler"
+        }
+      },
+      "prompt": {
+        "1": {"class_type": "LoadImage", "_meta": {"title": "Photo"}, "inputs": {"image": "example.png"}},
+        "2": {"class_type": "UpscaleModelLoader", "_meta": {"title": "Upscaler"}, "inputs": {"model_name": "4x-UltraSharp.pth"}},
+        "3": {"class_type": "ImageUpscaleWithModel", "_meta": {"title": "Enlarge"}, "inputs": {"upscale_model": ["2", 0], "image": ["1", 0]}},
+        "4": {"class_type": "SaveImage", "_meta": {"title": "Result"}, "inputs": {"images": ["3", 0], "filename_prefix": "upscale"}}
+      }
+    },
+    {
+      "id": "supir-restore",
+      "title": "SUPIR restore",
+      "tagline": "Photoreal restoration, detail rebuilt as it enlarges",
+      "action": "Restore",
+      "icon": "restore",
+      "kind": "IMAGE",
+      "about": "SUPIR rebuilds detail with a diffusion model instead of sharpening what is there, so soft or damaged photos come back with real texture. It is heavy: the photo is taken to a working size first, then enlarged from there, and both the working size and the scale decide how much memory a run needs. Low memory (fp8) halves the diffusion model, and tiled sampling trades speed for room when a run is too big to fit.",
+      "packs": [
+        {
+          "id": "supir",
+          "title": "ComfyUI-SUPIR",
+          "repository": "https://github.com/kijai/ComfyUI-SUPIR",
+          "classes": ["SUPIR_Upscale"]
+        }
+      ],
+      "models": [
+        {
+          "name": "SUPIR-v0Q_fp16.safetensors",
+          "directory": "checkpoints",
+          "url": "https://huggingface.co/Kijai/SUPIR_pruned/resolve/main/SUPIR-v0Q_fp16.safetensors",
+          "size": 2664858464
+        },
+        {
+          "name": "sd_xl_base_1.0.safetensors",
+          "directory": "checkpoints",
+          "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors",
+          "size": 6938078334
+        }
+      ],
+      "form": {
+        "pinned": ["1:image", "3:scale_by", "2:megapixels", "3:a_prompt"],
+        "hidden": [
+          "2:upscale_method",
+          "2:resolution_steps",
+          "3:resize_method",
+          "3:restoration_scale",
+          "3:s_churn",
+          "3:s_noise",
+          "3:control_scale",
+          "3:cfg_scale_start",
+          "3:control_scale_start",
+          "3:color_fix_type",
+          "3:keep_model_loaded",
+          "3:encoder_tile_size_pixels",
+          "3:decoder_tile_size_latent",
+          "3:diffusion_dtype",
+          "3:encoder_dtype",
+          "3:batch_size",
+          "3:sampler_tile_size",
+          "3:sampler_tile_stride",
+          "3:fp8_vae"
+        ],
+        "labels": {
+          "1:image": "Photo",
+          "2:megapixels": "Working size (MP)",
+          "3:scale_by": "Scale",
+          "3:a_prompt": "Describe the photo",
+          "3:n_prompt": "Avoid",
+          "3:steps": "Steps",
+          "3:cfg_scale": "Guidance",
+          "3:fp8_unet": "Low memory (fp8)",
+          "3:use_tiled_vae": "Tiled VAE",
+          "3:use_tiled_sampling": "Tiled sampling",
+          "3:supir_model": "SUPIR model",
+          "3:sdxl_model": "Base model"
+        },
+        "presets": {
+          "Gentle": {"2:megapixels": 1.0, "3:scale_by": 2.0, "3:steps": 20, "3:cfg_scale": 3.0},
+          "Full": {"2:megapixels": 1.0, "3:scale_by": 4.0, "3:steps": 45, "3:cfg_scale": 4.5}
+        }
+      },
+      "prompt": {
+        "1": {"class_type": "LoadImage", "_meta": {"title": "Photo"}, "inputs": {"image": "example.png"}},
+        "2": {
+          "class_type": "ImageScaleToTotalPixels",
+          "_meta": {"title": "Working size"},
+          "inputs": {"image": ["1", 0], "upscale_method": "lanczos", "megapixels": 1.0, "resolution_steps": 1}
+        },
+        "3": {
+          "class_type": "SUPIR_Upscale",
+          "_meta": {"title": "SUPIR restore"},
+          "inputs": {
+            "supir_model": "SUPIR-v0Q_fp16.safetensors",
+            "sdxl_model": "sd_xl_base_1.0.safetensors",
+            "image": ["2", 0],
+            "seed": 123,
+            "resize_method": "lanczos",
+            "scale_by": 2.0,
+            "steps": 30,
+            "restoration_scale": -1.0,
+            "cfg_scale": 4.0,
+            "a_prompt": "high quality, detailed photograph, sharp focus, natural texture",
+            "n_prompt": "bad quality, blurry, messy, jpeg artifacts, painting, drawing",
+            "s_churn": 5,
+            "s_noise": 1.003,
+            "control_scale": 1.0,
+            "cfg_scale_start": 4.0,
+            "control_scale_start": 0.0,
+            "color_fix_type": "Wavelet",
+            "keep_model_loaded": false,
+            "use_tiled_vae": true,
+            "encoder_tile_size_pixels": 512,
+            "decoder_tile_size_latent": 64,
+            "diffusion_dtype": "auto",
+            "encoder_dtype": "auto",
+            "batch_size": 1,
+            "use_tiled_sampling": false,
+            "sampler_tile_size": 1024,
+            "sampler_tile_stride": 512,
+            "fp8_unet": true,
+            "fp8_vae": false,
+            "sampler": "RestoreEDMSampler"
+          }
+        },
+        "4": {"class_type": "SaveImage", "_meta": {"title": "Result"}, "inputs": {"images": ["3", 0], "filename_prefix": "SUPIR"}}
+      }
+    }
+  ]
+}

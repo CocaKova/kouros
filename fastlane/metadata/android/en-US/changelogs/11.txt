@@ -1,0 +1,7 @@
+Apps: a new first tab of one-purpose tools. Upscale 4x enlarges in seconds without diffusion;
+SUPIR restore rebuilds real detail as it enlarges.
+
+Each card says what your server is still missing — node pack, model files, gigabytes — and sets
+it up: models through the Kouros Bridge, node packs through ComfyUI-Manager, then a restart.
+
+An app is data, not code: a prompt, a form arrangement and a list of what it needs.

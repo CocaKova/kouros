@@ -70,6 +70,8 @@ sealed interface RunScreenState {
         val modelLinks: Map<String, ModelNeeds.Link> = emptyMap(),
         /** The server's bridge can fetch missing models itself. */
         val canDownload: Boolean = false,
+        /** The app this workflow is, when it came from the app catalog. */
+        val appSpec: com.cocakova.kouros.core.apps.AppSpec? = null,
     ) : RunScreenState
 }
 
@@ -132,11 +134,12 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         val controls = baseForm.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
         val references = References.of(template.prompt, oi)
         val refs = (saved[REFS] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty().take(references.capacity)
-        val links = template.workflow?.raw?.let(ModelNeeds::links).orEmpty()
+        val appSpec = app.apps.specFor(w)
+        val links = template.workflow?.raw?.let(ModelNeeds::links).orEmpty() + appSpec?.modelLinks().orEmpty()
         val canDownload = runCatching { s.client.bridge()?.canDownloadModels == true }.getOrDefault(false)
         val base = RunScreenState.Ready(
             w, template, form, values, emptyList(), oi, controls, traits, references, refs,
-            baseForm = baseForm, layout = layout, modelLinks = links, canDownload = canDownload,
+            baseForm = baseForm, layout = layout, modelLinks = links, canDownload = canDownload, appSpec = appSpec,
         )
         return withIssues(base)
     }

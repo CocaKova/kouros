@@ -125,6 +125,11 @@ data class ModelDownload(val id: String, val name: String, val directory: String
     val fraction: Float? get() = total?.let { (done.toDouble() / it).toFloat().coerceIn(0f, 1f) }
 }
 
+/** How far ComfyUI-Manager has got with the work it was handed. */
+data class ManagerQueue(val total: Int, val done: Int, val inProgress: Int, val processing: Boolean) {
+    val finished: Boolean get() = !processing && inProgress == 0
+}
+
 data class DeleteReport(val deleted: List<FileRef>, val missing: List<FileRef>, val refused: List<FileRef>)
 
 data class LoadedModel(val name: String, val size: Long, val loaded: Long)

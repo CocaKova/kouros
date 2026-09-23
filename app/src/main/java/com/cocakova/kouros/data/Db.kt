@@ -63,6 +63,8 @@ data class WorkflowEntity(
     val models: String? = null,
     /** The [modified] stamp the traits were read from; stale when the desktop saves a new version. */
     val traitsFor: Double? = null,
+    /** The app this row is, when it came from the app catalog rather than a workflow file. */
+    val appId: String? = null,
 )
 
 enum class RunState { SUBMITTING, QUEUED, RUNNING, SUCCEEDED, FAILED, INTERRUPTED, LOST, REJECTED }
@@ -99,7 +101,8 @@ interface ServerDao {
 
 @Dao
 interface WorkflowDao {
-    @Query("SELECT * FROM workflows WHERE serverId = :serverId ORDER BY pinned DESC, COALESCE(lastOpenedAt, 0) DESC, name COLLATE NOCASE")
+    /** The workflow list proper; apps have their own tab and are left out of it. */
+    @Query("SELECT * FROM workflows WHERE serverId = :serverId AND appId IS NULL ORDER BY pinned DESC, COALESCE(lastOpenedAt, 0) DESC, name COLLATE NOCASE")
     fun forServer(serverId: String): Flow<List<WorkflowEntity>>
     @Query("SELECT * FROM workflows WHERE `key` = :key") suspend fun get(key: String): WorkflowEntity?
     @Query("SELECT * FROM workflows WHERE serverId = :serverId") suspend fun forServerOnce(serverId: String): List<WorkflowEntity>
@@ -142,7 +145,7 @@ interface RunDao {
     suspend fun rekey(from: String, to: String, name: String)
 }
 
-@Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 2, exportSchema = true)
+@Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 3, exportSchema = true)
 abstract class KourosDb : RoomDatabase() {
     abstract fun servers(): ServerDao
     abstract fun workflows(): WorkflowDao
@@ -150,12 +153,19 @@ abstract class KourosDb : RoomDatabase() {
 
     companion object {
         fun open(context: Context): KourosDb =
-            Room.databaseBuilder(context, KourosDb::class.java, "kouros.db").addMigrations(V1_V2).build()
+            Room.databaseBuilder(context, KourosDb::class.java, "kouros.db").addMigrations(V1_V2, V2_V3).build()
 
         /** 0.2: workflow traits (kind, inputs, models) for filtering and the prompt assistant. */
         private val V1_V2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 listOf("kind TEXT", "inputs TEXT", "models TEXT", "traitsFor REAL").forEach { db.execSQL("ALTER TABLE workflows ADD COLUMN $it") }
+            }
+        }
+
+        /** 1.1: apps — a workflow row that came from the app catalog remembers which app it is. */
+        private val V2_V3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE workflows ADD COLUMN appId TEXT")
             }
         }
     }
