@@ -4,7 +4,7 @@
 # One verb for an agent to call. It runs the stages, then prints a verdict block that is meant
 # to be read by a model as much as by a person:
 #
-#   ── PYGMALION SHIP VERDICT ─────────────
+#   ── KOUROS SHIP VERDICT ─────────────
 #   VERDICT: GREEN
 #   ...
 #   ───────────────────────────────────
@@ -25,7 +25,7 @@
 #   tools/ship.sh --detach        run in the background, write build/ship/status; poll that
 #                                 (a cold build can outlast an agent's tool timeout)
 #
-# --smoke INSTALLS com.cocakova.pygmalion (debug) on the connected device, replacing what is there.
+# --smoke INSTALLS com.cocakova.kouros (debug) on the connected device, replacing what is there.
 # It is off by default for that reason.
 
 set -uo pipefail
@@ -33,8 +33,8 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="$REPO_ROOT"
 OUT="$PROJECT/build/ship"
-ENV_SH="${PYG_ANDROID_ENV:-$HOME/android-buildenv/env.sh}"
-BUILD_HOST_FILE="${PYG_BUILD_HOST_FILE:-$HOME/.config/pygmalion/build-host}"
+ENV_SH="${KOUROS_ANDROID_ENV:-$HOME/android-buildenv/env.sh}"
+BUILD_HOST_FILE="${KOUROS_BUILD_HOST_FILE:-$HOME/.config/kouros/build-host}"
 
 SMOKE=0; RELEASE=0; DETACH=0; FORCE=0; LOCAL=0
 for a in "$@"; do case "$a" in
@@ -93,7 +93,7 @@ step "preflight"
 # shellcheck disable=SC1090
 [ -f "$ENV_SH" ] && source "$ENV_SH"
 if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ] && [ ! -f "$PROJECT/local.properties" ]; then
-  say "  no Android SDK: set ANDROID_HOME, add sdk.dir to local.properties, or point PYG_ANDROID_ENV at an env script"; exit 2
+  say "  no Android SDK: set ANDROID_HOME, add sdk.dir to local.properties, or point KOUROS_ANDROID_ENV at an env script"; exit 2
 fi
 if ! git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   say "  $REPO_ROOT is not a git checkout — wrong tree?"; exit 2
@@ -159,8 +159,8 @@ if [ "$SMOKE" = 1 ]; then
     # Whatever exit this script takes from here,
     # the on-device runner is stopped.
     stop_runner() {
-      "$ADB" -s "$DEVICE" shell am force-stop com.cocakova.pygmalion.debug.test >/dev/null 2>&1
-      "$ADB" -s "$DEVICE" shell am force-stop com.cocakova.pygmalion.debug      >/dev/null 2>&1
+      "$ADB" -s "$DEVICE" shell am force-stop com.cocakova.kouros.debug.test >/dev/null 2>&1
+      "$ADB" -s "$DEVICE" shell am force-stop com.cocakova.kouros.debug      >/dev/null 2>&1
     }
     trap 'stop_runner' EXIT INT TERM
     MODEL="$("$ADB" -s "$DEVICE" shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
@@ -197,7 +197,7 @@ count_tests() {
 TESTS="$(count_tests)"
 
 {
-  printf '\n── PYGMALION SHIP VERDICT ─────────────────────────────\n'
+  printf '\n── KOUROS SHIP VERDICT ─────────────────────────────\n'
   printf 'VERDICT:  %s\n' "$VERDICT"
   printf 'BRANCH:   %s @ %s%s\n' "$BRANCH" "$HEAD_SHA" "$([ "$DIRTY" -gt 0 ] && echo " (+$DIRTY uncommitted)")"
   printf 'VERSION:  %s (vc%s)\n' "$VERSION" "$VCODE"

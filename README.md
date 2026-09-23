@@ -1,4 +1,4 @@
-# Pygmalion
+# Kouros
 
 A native Android app for running [ComfyUI](https://github.com/comfyanonymous/ComfyUI) from your
 phone. Open any workflow saved on your server, get a clean form for the parts that matter, queue
@@ -10,7 +10,7 @@ lands in your gallery.
 ## What makes it different
 
 - **Any workflow, as it is.** Subgraphs, bypassed and muted nodes, reroutes, primitive nodes,
-  dynamic inputs — Pygmalion compiles saved workflows the same way the ComfyUI frontend does, and
+  dynamic inputs — Kouros compiles saved workflows the same way the ComfyUI frontend does, and
   is tested against the frontend's own output on hundreds of real workflows (see
   [`tools/golden`](tools/golden/README.md)). When a workflow needs something only the desktop can
   compute, it says so instead of guessing.
@@ -33,7 +33,7 @@ Requires JDK 17 and the Android SDK (API 36).
 
 ## Authorship
 
-Pygmalion is written and maintained solely by [CocaKova](https://github.com/CocaKova).
+Kouros is written and maintained solely by [CocaKova](https://github.com/CocaKova).
 
 ## License
 

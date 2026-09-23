@@ -3,8 +3,8 @@
 -dontnote kotlinx.serialization.**
 -keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
 -keepclasseswithmembers class ** { kotlinx.serialization.KSerializer serializer(...); }
--keep,includedescriptorclasses class com.cocakova.pygmalion.**$$serializer { *; }
--keepclassmembers class com.cocakova.pygmalion.** { *** Companion; }
+-keep,includedescriptorclasses class com.cocakova.kouros.**$$serializer { *; }
+-keepclassmembers class com.cocakova.kouros.** { *** Companion; }
 
 # Ktor / OkHttp optional platform classes
 -dontwarn org.slf4j.**

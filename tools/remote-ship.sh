@@ -3,11 +3,11 @@
 #
 # For a dev machine whose memory belongs to something else (a local model server, say): a Gradle
 # build is two JVMs and ~4-5 GB at peak. So the build runs on the host named in
-# ~/.config/pygmalion/build-host (user@host) — a machine with an Android SDK env script at
-# $PYG_ANDROID_ENV (default ~/android-buildenv/env.sh) — and the result lands here exactly as if
+# ~/.config/kouros/build-host (user@host) — a machine with an Android SDK env script at
+# $KOUROS_ANDROID_ENV (default ~/android-buildenv/env.sh) — and the result lands here exactly as if
 # ship.sh had run locally:
 #
-#   1. rsync the working tree, uncommitted changes included, to <host>:~/workspace/pygmalion
+#   1. rsync the working tree, uncommitted changes included, to <host>:~/workspace/kouros
 #   2. ssh <host> tools/ship.sh --local <args>          (streams the same output)
 #   3. rsync back build/ship/ (status, ship.log) and the APK outputs
 #   4. exit with ship.sh's own code: 0 GREEN / 1 RED / 3 AMBER / 2 setup error
@@ -18,8 +18,8 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOST_FILE="${PYG_BUILD_HOST_FILE:-$HOME/.config/pygmalion/build-host}"
-REMOTE_ROOT="workspace/pygmalion"                     # relative to $HOME on the build host
+HOST_FILE="${KOUROS_BUILD_HOST_FILE:-$HOME/.config/kouros/build-host}"
+REMOTE_ROOT="workspace/kouros"                     # relative to $HOME on the build host
 OUT="$REPO_ROOT/build/ship"
 mkdir -p "$OUT"
 LOG="$OUT/ship.log"
@@ -46,7 +46,7 @@ fi
 amber() {
   echo "AMBER" > "$OUT/status"
   {
-    printf '\n── PYGMALION SHIP VERDICT ─────────────────────────────\n'
+    printf '\n── KOUROS SHIP VERDICT ─────────────────────────────\n'
     printf 'VERDICT:  AMBER\n'
     printf 'STAGES:   (none ran)\n'
     printf 'REASON:   %s\n' "$1"

@@ -13,8 +13,8 @@ plugins {
 }
 
 tasks.withType<Test>().configureEach {
-    // Live end-to-end test: PYG_LIVE_SERVER=http://host:8188 PYG_LIVE_WORKFLOW=path/to/workflow.json
-    listOf("PYG_LIVE_SERVER", "PYG_LIVE_WORKFLOW", "PYG_LIVE_PROMPT").forEach { k -> System.getenv(k)?.let { environment(k, it) } }
+    // Live end-to-end test: KOUROS_LIVE_SERVER=http://host:8188 KOUROS_LIVE_WORKFLOW=path/to/workflow.json
+    listOf("KOUROS_LIVE_SERVER", "KOUROS_LIVE_WORKFLOW", "KOUROS_LIVE_PROMPT").forEach { k -> System.getenv(k)?.let { environment(k, it) } }
 }
 
 kotlin {

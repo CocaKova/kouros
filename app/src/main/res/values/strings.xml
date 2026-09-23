@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Pygmalion</string>
+    <string name="app_name">Kouros</string>
     <string name="widget_description">Your latest result, live progress, and one tap to run again</string>
     <string name="tile_label">Run again</string>
 </resources>

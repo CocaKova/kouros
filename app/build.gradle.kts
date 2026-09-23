@@ -8,27 +8,27 @@ plugins {
 }
 
 // Release signing comes from local.properties (never committed):
-//   pygmalion.keystore=/absolute/path/to/release.keystore
-//   pygmalion.keystore.password=…
-//   pygmalion.key.alias=…
-//   pygmalion.key.password=…
+//   kouros.keystore=/absolute/path/to/release.keystore
+//   kouros.keystore.password=…
+//   kouros.key.alias=…
+//   kouros.key.password=…
 // Absent those, release builds fall back to the debug keystore (sideload/dev convenience).
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-val releaseKeystorePath: String? = localProps.getProperty("pygmalion.keystore")
+val releaseKeystorePath: String? = localProps.getProperty("kouros.keystore")
 
-// Supporter overlay: when a sibling checkout named pygmalion-ivory sits beside this repo, an
+// Supporter overlay: when a sibling checkout named kouros-ivory sits beside this repo, an
 // "ivory" flavor appears with its sources. The public repo is complete without it — foss is
 // the whole app and the only flavor most builders will ever see.
-val ivoryDir = rootProject.file("../pygmalion-ivory")
+val ivoryDir = rootProject.file("../kouros-ivory")
 
 android {
-    namespace = "com.cocakova.pygmalion"
+    namespace = "com.cocakova.kouros"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.cocakova.pygmalion"
+        applicationId = "com.cocakova.kouros"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -69,9 +69,9 @@ android {
         if (releaseKeystorePath != null) {
             create("release") {
                 storeFile = file(releaseKeystorePath)
-                storePassword = localProps.getProperty("pygmalion.keystore.password")
-                keyAlias = localProps.getProperty("pygmalion.key.alias")
-                keyPassword = localProps.getProperty("pygmalion.key.password")
+                storePassword = localProps.getProperty("kouros.keystore.password")
+                keyAlias = localProps.getProperty("kouros.key.alias")
+                keyPassword = localProps.getProperty("kouros.key.password")
             }
         }
     }

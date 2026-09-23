@@ -1,11 +1,11 @@
 <resources>
-    <style name="Theme.Pygmalion" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Kouros" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/stone_0</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
-    <style name="Theme.Pygmalion.Splash" parent="Theme.Pygmalion" />
-    <style name="Theme.Pygmalion.Invisible" parent="android:Theme.Translucent.NoTitleBar">
+    <style name="Theme.Kouros.Splash" parent="Theme.Kouros" />
+    <style name="Theme.Kouros.Invisible" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowNoDisplay">false</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
