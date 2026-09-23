@@ -23,7 +23,8 @@ class FormReportTest {
                 val compiled = WorkflowCompiler(oi).compile(wf)
                 val form = FormEngine(oi).build(compiled, wf)
                 val traits = WorkflowTraits.of(compiled.prompt, oi)
-                out.appendLine("── ${corpus.name}/${case.name}  → ${traits.primary ?: "?"} out=${traits.outputs} in=${traits.inputs} models=${traits.models.take(3)}")
+                val refs = com.cocakova.kouros.core.form.References.of(compiled.prompt, oi)
+                out.appendLine("── ${corpus.name}/${case.name}  → ${traits.primary ?: "?"} out=${traits.outputs} in=${traits.inputs} refs=${refs.capacity}${refs.byNode.values.firstOrNull()?.let { " " + it.first().classType + "." + it.first().input } ?: ""} models=${traits.models.take(3)}")
                 form.hero.forEach { out.appendLine("  ★ ${it.label} [${it.role}/${it.origin}/${it.score}] = ${it.initial.toString().take(50)}") }
                 out.appendLine("  + ${form.advanced.size} advanced: " + form.advanced.take(8).joinToString { it.label })
             }
