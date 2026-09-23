@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -66,11 +67,21 @@ fun StatusDot(state: ConnState?, size: Dp = 8.dp) {
 
 /** A screen's title: large serif, with an optional overline and trailing content. */
 @Composable
-fun ScreenHeader(title: String, overline: String? = null, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
+fun ScreenHeader(
+    title: String,
+    overline: String? = null,
+    modifier: Modifier = Modifier,
+    /** Sits before the overline, e.g. the server's connection dot beside its name. */
+    status: (@Composable () -> Unit)? = null,
+    trailing: @Composable () -> Unit = {},
+) {
     Row(modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             overline?.let {
-                Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    status?.let { s -> s(); Spacer(Modifier.width(6.dp)) }
+                    Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Spacer(Modifier.height(2.dp))
             }
             Text(title, style = MaterialTheme.typography.displaySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)

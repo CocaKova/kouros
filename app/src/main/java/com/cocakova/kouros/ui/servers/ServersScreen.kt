@@ -143,13 +143,25 @@ internal fun describe(state: ConnState): String = when (state) {
         listOfNotNull(
             st.comfyuiVersion?.let { "ComfyUI $it" },
             dev?.name?.substringBefore(" : ")?.removePrefix("cuda:0 ")?.take(40),
-            dev?.vramTotal?.takeIf { it > 0 }?.let { t -> "${gb(dev.vramFree ?: 0)} / ${gb(t)} free" },
+            memoryLine(st),
         ).joinToString(" · ")
     } ?: "Online"
     is ConnState.Connecting -> "Connecting…"
     is ConnState.Degraded -> "Reachable, but live updates are blocked (${state.reason}). Progress will update by polling."
     is ConnState.Offline -> "Offline — ${state.reason}. Retrying in ${state.retryInMs / 1000}s"
     ConnState.Idle -> "Not connected"
+}
+
+/**
+ * Free memory as the machine sees it. On unified-memory devices (VRAM total ≈ system RAM) the
+ * GPU's own "free" counts only torch's pool, so system RAM free is the honest number there.
+ */
+internal fun memoryLine(st: com.cocakova.kouros.core.api.SystemStats): String? {
+    val dev = st.devices.firstOrNull()
+    val vt = dev?.vramTotal?.takeIf { it > 0 } ?: return st.ramTotal?.let { t -> st.ramFree?.let { "${gb(it)} of ${gb(t)} free" } }
+    val rt = st.ramTotal
+    val unified = rt != null && rt > 0 && kotlin.math.abs(vt - rt).toDouble() / rt < 0.05
+    return if (unified && st.ramFree != null) "${gb(st.ramFree!!)} of ${gb(rt!!)} free" else "${gb(dev.vramFree ?: 0)} of ${gb(vt)} free"
 }
 
 private fun gb(bytes: Long) = "%.1f GB".format(bytes / 1_073_741_824.0)

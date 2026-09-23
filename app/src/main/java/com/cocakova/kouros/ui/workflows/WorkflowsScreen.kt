@@ -159,9 +159,7 @@ fun WorkflowsScreen(
 
         LazyColumn(contentPadding = PaddingValues(bottom = Space.xl)) {
             item {
-                ScreenHeader("Workflows", overline = s.name) {
-                    StatusDot(conn, 10.dp)
-                    Spacer(Modifier.width(Space.xs))
+                ScreenHeader("Workflows", overline = s.name, status = { StatusDot(conn, 8.dp) }) {
                     IconButton(onClick = { importer.launch(arrayOf("application/json", "*/*")) }) { Icon(Icons.Outlined.FileOpen, "Open a workflow file") }
                 }
             }
