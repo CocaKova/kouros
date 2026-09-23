@@ -34,7 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.cocakova.pygmalion.app
 import com.cocakova.pygmalion.data.ServerEntity
+import kotlinx.coroutines.launch
 import com.cocakova.pygmalion.net.ConnState
 import com.cocakova.pygmalion.ui.CurrentServer
 import com.cocakova.pygmalion.ui.components.EmptyState
@@ -97,6 +99,33 @@ private fun ServerRow(s: ServerEntity, selected: Boolean, onSelect: () -> Unit, 
         }
         Spacer(Modifier.height(8.dp))
         Text(describe(state), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        PowerButtons(s)
+    }
+}
+
+/** Start / Stop, when the user configured power controls; the answer is shown as the server gave it. */
+@Composable
+fun PowerButtons(s: ServerEntity) {
+    val power = remember(s.powerJson) { com.cocakova.pygmalion.net.PowerControl.parse(s.powerJson) } ?: return
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var answer by remember { mutableStateOf<com.cocakova.pygmalion.net.PowerControl.Result?>(null) }
+    fun go(a: com.cocakova.pygmalion.net.PowerControl.Action) {
+        busy = true
+        scope.launch {
+            answer = power.invoke(s, a)
+            busy = false
+            app.sessions.get(s).kick()
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (power.startUrl != null) androidx.compose.material3.OutlinedButton(enabled = !busy, onClick = { go(com.cocakova.pygmalion.net.PowerControl.Action.START) }) { Text("Start") }
+        if (power.stopUrl != null) androidx.compose.material3.OutlinedButton(enabled = !busy, onClick = { go(com.cocakova.pygmalion.net.PowerControl.Action.STOP) }) { Text("Stop") }
+        if (power.statusUrl != null) androidx.compose.material3.TextButton(enabled = !busy, onClick = { go(com.cocakova.pygmalion.net.PowerControl.Action.STATUS) }) { Text("Status") }
+    }
+    answer?.let { a ->
+        Text(a.text, style = MaterialTheme.typography.bodySmall, color = if (a.ok) Atelier.colors.done else Atelier.colors.error)
     }
 }
 

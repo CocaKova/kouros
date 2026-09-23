@@ -5,4 +5,8 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
     <style name="Theme.Pygmalion.Splash" parent="Theme.Pygmalion" />
+    <style name="Theme.Pygmalion.Invisible" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowNoDisplay">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

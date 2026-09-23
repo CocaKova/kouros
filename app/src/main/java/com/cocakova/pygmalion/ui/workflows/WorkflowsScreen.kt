@@ -63,7 +63,13 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkflowsScreen(pad: PaddingValues, onOpen: (String) -> Unit, onAddServer: () -> Unit) {
+fun WorkflowsScreen(
+    pad: PaddingValues,
+    onOpen: (String) -> Unit,
+    onAddServer: () -> Unit,
+    sharing: com.cocakova.pygmalion.ui.SharedMedia? = null,
+    onCancelShare: () -> Unit = {},
+) {
     val server by CurrentServer.server.collectAsState()
     val s = server
     if (s == null) {
@@ -107,6 +113,19 @@ fun WorkflowsScreen(pad: PaddingValues, onOpen: (String) -> Unit, onAddServer: (
                     StatusDot(conn, 10.dp)
                     Spacer(Modifier.width(4.dp))
                     IconButton(onClick = { importer.launch(arrayOf("application/json", "*/*")) }) { Icon(Icons.Outlined.FileOpen, "Open a workflow file") }
+                }
+            }
+            sharing?.let { sh ->
+                item {
+                    com.cocakova.pygmalion.ui.components.Slab(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Choose a workflow for your ${if (sh.uris.size > 1) "${sh.uris.size} ${sh.kind}s" else sh.kind}",
+                                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                            )
+                            androidx.compose.material3.TextButton(onClick = onCancelShare) { Text("Cancel") }
+                        }
+                    }
                 }
             }
             if ((list?.size ?: 0) > 6) item {

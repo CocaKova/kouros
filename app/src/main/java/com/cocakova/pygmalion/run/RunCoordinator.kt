@@ -105,6 +105,7 @@ class RunCoordinator(private val app: PygmalionApp) {
             when (val r = session.client.submit(prompt, session.server.clientId, promptId, extra)) {
                 is SubmitResult.Accepted -> {
                     app.db.runs().update(entity.copy(state = RunState.QUEUED))
+                    app.appScope.launch { com.cocakova.pygmalion.widget.PygWidget.refresh(app) }
                     trackers[promptId]?.let { publish(promptId, it.state) }
                     Submitted.Ok(promptId)
                 }
@@ -263,6 +264,7 @@ class RunCoordinator(private val app: PygmalionApp) {
         publish(p.promptId, p.copy(outputs = outputs))
         app.notifier.finished(updated, outputs)
         drop(p.promptId)
+        com.cocakova.pygmalion.widget.PygWidget.refresh(app)
     }
 
     private suspend fun drop(promptId: String) {

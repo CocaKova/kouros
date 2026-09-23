@@ -68,6 +68,22 @@ object PendingOpen {
     val run = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }
 
+/** Media shared into the app, waiting for a workflow to receive it. */
+data class SharedMedia(val uris: List<android.net.Uri>, val mime: String) {
+    val kind: String get() = when {
+        mime.startsWith("video") -> "video"
+        mime.startsWith("audio") -> "audio"
+        else -> "image"
+    }
+}
+
+val PendingShare = kotlinx.coroutines.flow.MutableStateFlow<SharedMedia?>(null)
+
+/** Media handed to the run screen of the workflow the person chose; consumed once. */
+object ShareHandoff {
+    @Volatile var media: SharedMedia? = null
+}
+
 @Composable
 fun PygmalionRoot() {
     val nav = rememberNavController()
@@ -83,6 +99,9 @@ fun PygmalionRoot() {
         if (run.state.name in setOf("SUBMITTING", "QUEUED", "RUNNING") && run.workflowKey != null) nav.navigate("run/${Uri.encode(run.workflowKey)}")
         else nav.navigate("result/${run.serverId}/${run.promptId}/0")
     }
+
+    val share by PendingShare.collectAsState()
+    LaunchedEffect(share) { if (share != null && route != "workflows") nav.navigate("workflows") { launchSingleTop = true } }
 
     Scaffold(
         bottomBar = {
@@ -109,7 +128,17 @@ fun PygmalionRoot() {
     ) { pad ->
         NavHost(nav, startDestination = "workflows") {
             composable("workflows") {
-                WorkflowsScreen(pad, onOpen = { key -> nav.navigate("run/${Uri.encode(key)}") }, onAddServer = { nav.navigate("servers") })
+                WorkflowsScreen(
+                    pad,
+                    onOpen = { key ->
+                        // A pending share goes to whichever workflow is opened next.
+                        PendingShare.value?.let { ShareHandoff.media = it; PendingShare.value = null }
+                        nav.navigate("run/${Uri.encode(key)}")
+                    },
+                    onAddServer = { nav.navigate("servers") },
+                    sharing = share,
+                    onCancelShare = { PendingShare.value = null },
+                )
             }
             composable("gallery") { GalleryScreen(pad) { s, p, i -> nav.navigate("result/$s/$p/$i") } }
             composable("queue") { QueueScreen(pad) }

@@ -123,11 +123,11 @@ gradle_stage "app unit tests"   :app:testDebugUnitTest
 
 # ── assemble ───────────────────────────────────────────────────────────────────
 if [ "$RELEASE" = 1 ]; then
-  gradle_stage "assemble release" :app:assembleRelease
-  APK="$(ls -t "$PROJECT"/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)"
+  gradle_stage "assemble release" :app:assembleFossRelease
+  APK="$(ls -t "$PROJECT"/app/build/outputs/apk/foss/release/*.apk "$PROJECT"/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)"
 else
-  gradle_stage "assemble debug" :app:assembleDebug
-  APK="$(ls -t "$PROJECT"/app/build/outputs/apk/debug/*.apk 2>/dev/null | head -1)"
+  gradle_stage "assemble debug" :app:assembleFossDebug
+  APK="$(ls -t "$PROJECT"/app/build/outputs/apk/foss/debug/*.apk "$PROJECT"/app/build/outputs/apk/debug/*.apk 2>/dev/null | head -1)"
 fi
 
 # ── on-device canary ───────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ if [ "$SMOKE" = 1 ]; then
     MODEL="$("$ADB" -s "$DEVICE" shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
 
     say "  target $DEVICE ($MODEL)"
-    if ./gradlew :app:connectedDebugAndroidTest >>"$LOG" 2>&1; then
+    if ./gradlew :app:connectedFossDebugAndroidTest >>"$LOG" 2>&1; then
       say "  ok"; record "on-device canary" pass
     else
       say "  FAILED — see $LOG"; record "on-device canary" fail
@@ -187,7 +187,7 @@ else VERDICT=GREEN; fi
 count_tests() {
   local n=0
   for d in "$PROJECT"/core/build/test-results/jvmTest \
-           "$PROJECT"/app/build/test-results/testDebugUnitTest \
+           "$PROJECT"/app/build/test-results/test*DebugUnitTest \
            "$PROJECT"/app/build/outputs/androidTest-results/connected; do
     [ -d "$d" ] || continue
     n=$(( n + $(grep -ho 'tests="[0-9]*"' "$d"/*.xml 2>/dev/null | grep -o '[0-9]*' | paste -sd+ | bc 2>/dev/null || echo 0) ))

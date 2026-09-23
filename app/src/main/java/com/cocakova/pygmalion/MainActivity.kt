@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import com.cocakova.pygmalion.ui.PendingOpen
+import com.cocakova.pygmalion.ui.PendingShare
+import com.cocakova.pygmalion.ui.SharedMedia
 import com.cocakova.pygmalion.ui.PygmalionRoot
 import com.cocakova.pygmalion.ui.theme.PygmalionTheme
 
@@ -34,7 +36,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handle(intent: Intent?) {
-        intent?.getStringExtra(EXTRA_RUN)?.let { PendingOpen.run.value = it }
+        intent ?: return
+        intent.getStringExtra(EXTRA_RUN)?.let { PendingOpen.run.value = it }
+        // Shared media: remember it until the person picks a workflow to put it into.
+        val uris: List<android.net.Uri> = when (intent.action) {
+            Intent.ACTION_SEND -> listOfNotNull(
+                if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM),
+            )
+            Intent.ACTION_SEND_MULTIPLE -> (
+                if (Build.VERSION.SDK_INT >= 33) intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                else @Suppress("DEPRECATION") intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+                ).orEmpty()
+            else -> emptyList()
+        }
+        if (uris.isNotEmpty()) PendingShare.value = SharedMedia(uris, intent.type ?: "image/*")
     }
 
     companion object {

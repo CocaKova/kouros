@@ -72,6 +72,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
     fun load(refresh: Boolean) = viewModelScope.launch {
         _state.value = RunScreenState.Loading
         _state.value = runCatching { resolve(refresh) }.getOrElse { e -> RunScreenState.Failed(e.message ?: "Couldn't open this workflow") }
+        (_state.value as? RunScreenState.Ready)?.let { receiveShared(it.form) }
     }
 
     private suspend fun resolve(refresh: Boolean): RunScreenState {
@@ -125,6 +126,20 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
             val v = st.values + (field.key to value)
             st.copy(values = v, issues = validate(st.template, st.form, v, st.objectInfo))
         }
+    }
+
+    /**
+     * Media shared into the app lands in this workflow's media inputs, in order — images into
+     * image loaders first, then any loader, so a single shared photo fills the obvious slot.
+     */
+    private fun receiveShared(form: Form) {
+        val shared = com.cocakova.pygmalion.ui.ShareHandoff.media ?: return
+        com.cocakova.pygmalion.ui.ShareHandoff.media = null
+        val media = form.all.filter { it.role == com.cocakova.pygmalion.core.form.FieldRole.MEDIA }
+        val matching = media.filter { (it.spec.uploadKind ?: "image") == shared.kind } .ifEmpty { media }
+        if (matching.isEmpty()) { _message.value = "This workflow has no ${shared.kind} input"; return }
+        shared.uris.zip(matching).forEach { (uri, field) -> upload(field, uri) }
+        if (shared.uris.size > matching.size) _message.value = "Used ${matching.size} of ${shared.uris.size} — the workflow has ${matching.size} inputs"
     }
 
     /** Uploads a picked file to the server's input folder and points the field at it. */

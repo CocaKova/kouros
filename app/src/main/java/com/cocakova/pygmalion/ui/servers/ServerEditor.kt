@@ -59,6 +59,13 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
     var user by remember { mutableStateOf(existing?.authUser ?: "") }
     var secret by remember { mutableStateOf(existing?.let { app.secrets.get(Secrets.serverSecret(it.id)) } ?: "") }
     var allowInsecure by remember { mutableStateOf(existing?.allowInsecure ?: false) }
+    val power0 = remember { com.cocakova.pygmalion.net.PowerControl.parse(existing?.powerJson) }
+    var powerOpen by remember { mutableStateOf(power0 != null) }
+    var startUrl by remember { mutableStateOf(power0?.startUrl ?: "") }
+    var stopUrl by remember { mutableStateOf(power0?.stopUrl ?: "") }
+    var statusUrl by remember { mutableStateOf(power0?.statusUrl ?: "") }
+    var powerHeader by remember { mutableStateOf(power0?.headerName ?: "") }
+    var powerSecret by remember { mutableStateOf(existing?.let { app.secrets.get(Secrets.powerSecret(it.id)) } ?: "") }
     var testing by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
 
@@ -75,7 +82,10 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
         authUser = user.ifBlank { null },
         clientId = existing?.clientId ?: UUID.randomUUID().toString(),
         allowInsecure = allowInsecure,
-        powerJson = existing?.powerJson,
+        powerJson = com.cocakova.pygmalion.net.PowerControl(
+            startUrl.trim().ifBlank { null }, stopUrl.trim().ifBlank { null },
+            statusUrl.trim().ifBlank { null }, powerHeader.trim().ifBlank { null },
+        ).takeIf { !it.isEmpty }?.toJson(),
         sortOrder = existing?.sortOrder ?: 0,
         createdAt = existing?.createdAt ?: System.currentTimeMillis(),
     )
@@ -134,6 +144,23 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                 )
             }
 
+            TextButton(onClick = { powerOpen = !powerOpen }) { Text(if (powerOpen) "Hide power controls" else "Power controls (optional)") }
+            if (powerOpen) {
+                Text(
+                    "If something can start or stop ComfyUI over HTTP — a launcher, a home-automation hook, a cloud API — " +
+                        "Pygmalion can call it for you. Start and Stop are sent as POST, Status as GET.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(startUrl, { startUrl = it }, label = { Text("Start URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(stopUrl, { stopUrl = it }, label = { Text("Stop URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(statusUrl, { statusUrl = it }, label = { Text("Status URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(powerHeader, { powerHeader = it }, label = { Text("Secret header name") }, placeholder = { Text("Authorization") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    powerSecret, { powerSecret = it }, label = { Text("Secret value") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             result?.let { (ok, msg) ->
                 Text(msg, color = if (ok) Atelier.colors.done else Atelier.colors.error, style = MaterialTheme.typography.bodyMedium)
             }
@@ -166,6 +193,7 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                     scope.launch {
                         val s = draft(existing?.id ?: UUID.randomUUID().toString())
                         app.secrets.put(Secrets.serverSecret(s.id), secret.takeIf { auth != AuthKind.NONE })
+                        app.secrets.put(Secrets.powerSecret(s.id), powerSecret.takeIf { s.powerJson != null })
                         app.db.servers().upsert(s)
                         app.sessions.invalidate(s.id)
                         if (existing == null) CurrentServer.select(s.id)
