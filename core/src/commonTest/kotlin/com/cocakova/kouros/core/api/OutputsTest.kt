@@ -34,4 +34,12 @@ class OutputsTest {
         val items = Outputs.classify("1", o("""{"images":[{"filename":"x.png","subfolder":"","type":"temp"}]}"""))
         assertEquals(true, items.single().isTemp)
     }
+
+    @Test fun readsTheOutputFolderListing() {
+        val a = Outputs.fromListing("portraits/Qwen_00025.png [output]")!!
+        assertEquals(FileRef("Qwen_00025.png", "portraits", "output"), a.file)
+        assertEquals(MediaKind.IMAGE, a.kind)
+        assertEquals(MediaKind.VIDEO, Outputs.fromListing("clip.mp4 [output]")?.kind)
+        assertEquals(null, Outputs.fromListing("_output_images_will_be_put_here [output]"))
+    }
 }

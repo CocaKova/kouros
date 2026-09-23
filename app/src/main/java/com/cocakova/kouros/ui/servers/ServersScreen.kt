@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,11 +49,21 @@ import com.cocakova.kouros.ui.components.StatusDot
 import com.cocakova.kouros.ui.theme.Atelier
 
 @Composable
-fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}, onConsole: (String) -> Unit = {}) {
+fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}, onConsole: (String) -> Unit = {}, onFirstServer: () -> Unit = {}) {
     val servers by CurrentServer.servers.collectAsState()
     val current by CurrentServer.server.collectAsState()
     var editing by remember { mutableStateOf<ServerEntity?>(null) }
     var adding by remember { mutableStateOf(false) }
+    // Sent here to add one ("Connect a server"): open the sheet straight away.
+    val addRequested by com.cocakova.kouros.ui.PendingAddServer.collectAsState()
+    LaunchedEffect(addRequested) { if (addRequested) { adding = true; com.cocakova.kouros.ui.PendingAddServer.value = false } }
+    // The very first server saved: go and show its workflows.
+    val serverCount = CurrentServer.servers.collectAsState().value.size
+    var hadNone by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(serverCount) {
+        if (hadNone == null) hadNone = serverCount == 0
+        else if (hadNone == true && serverCount > 0) { hadNone = false; onFirstServer() }
+    }
 
     Box(Modifier.fillMaxSize().padding(pad)) {
         if (servers.isEmpty()) {

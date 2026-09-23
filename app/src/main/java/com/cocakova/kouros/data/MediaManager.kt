@@ -40,6 +40,7 @@ class MediaManager(private val app: KourosApp) {
                 } else kept += files.size
             }
             for ((promptId, picked) in group.groupBy { it.promptId }) {
+                if (promptId.startsWith(com.cocakova.kouros.ui.gallery.FileTile.PREFIX)) continue // a bare file: no run to forget
                 val gone = picked.mapNotNull { it.item.file }.toSet()
                 val local = app.db.runs().get(promptId)
                 val all = local?.let { RunCoordinator.decodeOutputs(it.outputsJson) }

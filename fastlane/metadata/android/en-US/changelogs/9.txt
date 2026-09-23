@@ -1,0 +1,7 @@
+First stable release.
+
+- Template gallery: start from your server's templates and see missing models with links (or let Kouros Bridge download them)
+- Arrange fields: pin, reorder, rename, hide; save presets
+- The gallery shows the whole output folder
+- Release signing key (one-time reinstall from pre-releases)
+- Many first-run fixes

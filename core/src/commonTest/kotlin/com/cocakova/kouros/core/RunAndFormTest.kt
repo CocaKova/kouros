@@ -91,6 +91,19 @@ class RunAndFormTest {
         assertEquals(1f, t.state.fraction)
     }
 
+    @Test fun trackerWorksOutCachedNodesWhenItMissedTheAnnouncement() {
+        // The socket joined after "execution_cached": the first node seen running is 3, so its
+        // inputs (1 and 2) were cached, and the run is 2 nodes long, not 4.
+        val t = RunTracker("p", WorkflowCompiler(oi).compile(wf).prompt, setOf("Save"))
+        t.onEvent(WsEvent.Executing("p", "3", "3"), 102)
+        assertEquals(2, t.state.totalNodes)
+        t.onEvent(WsEvent.Progress("p", "3", 10, 20), 103)
+        assertEquals(0.25f, t.state.fraction)
+        t.onEvent(WsEvent.Executing("p", "4", "4"), 104)
+        assertEquals(1, t.state.doneNodes)
+        assertEquals(2, t.state.totalNodes)
+    }
+
     @Test fun trackerIgnoresOtherPrompts() {
         val t = RunTracker("p", WorkflowCompiler(oi).compile(wf).prompt, setOf("Save"))
         assertEquals(null, t.onEvent(WsEvent.ExecutionStart("other"), 1))

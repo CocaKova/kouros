@@ -81,6 +81,17 @@ import com.cocakova.kouros.ui.CurrentServer
 import com.cocakova.kouros.ui.components.EmptyState
 import com.cocakova.kouros.ui.components.ScreenHeader
 
+/** Gallery entries that are just a file in the server's output folder, with no run behind them. */
+object FileTile {
+    const val PREFIX = "file:"
+    fun id(f: com.cocakova.kouros.core.api.FileRef) = PREFIX + android.net.Uri.encode("${f.type}|${f.subfolder}|${f.filename}")
+    fun ref(id: String): com.cocakova.kouros.core.api.FileRef? {
+        if (!id.startsWith(PREFIX)) return null
+        val parts = android.net.Uri.decode(id.removePrefix(PREFIX)).split('|', limit = 3)
+        return if (parts.size == 3) com.cocakova.kouros.core.api.FileRef(parts[2], parts[1], parts[0]) else null
+    }
+}
+
 /** One tile: an output of a run, from this phone's runs or from the server's history. */
 data class Tile(val serverId: String, val promptId: String, val index: Int, val item: OutputItem, val title: String)
 
@@ -95,11 +106,16 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
     val s = server
     LaunchedEffect(fromServer, s?.id, reload) {
         if (fromServer && s != null) history = runCatching {
-            app.sessions.get(s).client.history(150).flatMap { h ->
+            val client = app.sessions.get(s).client
+            val runs = client.history(150).flatMap { h ->
                 h.outputs.flatMap { (id, o) -> com.cocakova.kouros.core.api.Outputs.classify(id, o) }
                     .filter { !it.isTemp }
                     .mapIndexed { i, item -> Tile(s.id, h.promptId, i, item, h.promptId.take(8)) }
             }
+            // The whole output folder, newest first — history forgets everything when the server
+            // restarts. A file that came from a run in history keeps that run (for remixing).
+            val byFile = runs.associateBy { it.item.file }
+            client.outputFiles()?.map { item -> val f = item.file!!; byFile[f] ?: Tile(s.id, FileTile.id(f), 0, item, f.filename) } ?: runs
         }.getOrDefault(emptyList())
     }
     val phoneTiles = remember(runs) {
@@ -143,7 +159,7 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
             if (tiles.isEmpty()) item(span = StaggeredGridItemSpan.FullLine) {
                 EmptyState(
                     if (fromServer) "Nothing here yet" else "Your results will gather here",
-                    if (fromServer) "The server's recent history is empty." else "Run a workflow and what it makes appears here — also saved on your server as always.",
+                    if (fromServer) "Nothing in the server's output folder yet." else "Run a workflow and what it makes appears here — also saved on your server as always.",
                 )
             } else if (!selecting) item(span = StaggeredGridItemSpan.FullLine) {
                 Text("Long-press to select", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
@@ -155,6 +171,7 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
                 Box(
                     Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainer)
                         .combinedClickable(
+                            onClickLabel = if (selecting) "Select" else "Open", onLongClickLabel = "Select",
                             onClick = { if (selecting) selected = if (isSel) selected - k else selected + k else onOpen(t.serverId, t.promptId, t.index) },
                             onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); selected = if (isSel) selected - k else selected + k },
                         ),

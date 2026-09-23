@@ -30,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -54,15 +56,37 @@ fun StatusDot(state: ConnState?, size: Dp = 8.dp) {
         is ConnState.Offline -> c.error
         else -> c.idle
     }
-    val pulse = rememberInfiniteTransition(label = "dot")
-    val alpha by pulse.animateFloat(
-        initialValue = 0.35f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "a",
-    )
+    // Connecting pulses, unless the person turned animations off; then it just dims.
+    val still = reducedMotion()
+    val alpha = if (state is ConnState.Connecting && !still) {
+        val pulse = rememberInfiniteTransition(label = "dot")
+        pulse.animateFloat(
+            initialValue = 0.35f, targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "a",
+        ).value
+    } else if (state is ConnState.Connecting) 0.6f else 1f
     Box(
-        Modifier.size(size).clip(CircleShape)
-            .background(color.copy(alpha = if (state is ConnState.Connecting) alpha else 1f)),
+        Modifier.size(size).clip(CircleShape).background(color.copy(alpha = alpha))
+            .semantics { contentDescription = connLabel(state) },
     )
+}
+
+/** What the dot means, for TalkBack. */
+private fun connLabel(state: ConnState?): String = when (state) {
+    is ConnState.Online -> "Connected"
+    is ConnState.Connecting -> "Connecting"
+    is ConnState.Degraded -> "Connected, live updates blocked"
+    is ConnState.Offline -> "Offline"
+    else -> "Not connected"
+}
+
+/** True when the system's animations are off (Settings → Accessibility → Remove animations). */
+@Composable
+fun reducedMotion(): Boolean {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return androidx.compose.runtime.remember {
+        android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
 }
 
 /** A screen's title: large serif, with an optional overline and trailing content. */

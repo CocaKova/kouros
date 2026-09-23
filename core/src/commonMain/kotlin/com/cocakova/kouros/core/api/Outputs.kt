@@ -79,6 +79,18 @@ object Outputs {
         else -> null
     }
 
+    /**
+     * One entry of the server's file listing (`/internal/files/output`): "sub/name.png [output]".
+     * Only media a person would open; placeholders and stray files are skipped.
+     */
+    fun fromListing(entry: String): OutputItem? {
+        val path = entry.substringBeforeLast(" [").trim().replace('\\', '/')
+        val type = entry.substringAfterLast(" [", "output]").removeSuffix("]").ifBlank { "output" }
+        val name = path.substringAfterLast('/')
+        val kind = byExtension(name)?.takeIf { it != MediaKind.TEXT } ?: return null
+        return OutputItem("", kind, FileRef(name, path.substringBeforeLast('/', ""), type))
+    }
+
     fun mimeOf(filename: String): String = when (filename.substringAfterLast('.', "").lowercase()) {
         "png" -> "image/png"; "jpg", "jpeg" -> "image/jpeg"; "webp" -> "image/webp"; "gif" -> "image/gif"
         "mp4", "m4v" -> "video/mp4"; "webm" -> "video/webm"; "mov" -> "video/quicktime"; "mkv" -> "video/x-matroska"

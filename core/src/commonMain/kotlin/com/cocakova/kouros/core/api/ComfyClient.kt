@@ -235,6 +235,47 @@ class ComfyClient(private val http: HttpClient, val endpoint: ServerEndpoint) {
         )
     }.getOrNull()
 
+    /**
+     * Starts downloading a model into one of the server's model folders (bridge "models.download").
+     * The bridge fetches it itself, so nothing passes through the phone. Returns the job id.
+     */
+    suspend fun downloadModel(url: String, directory: String, name: String): String {
+        val body = buildJsonObject { put("url", url); put("directory", directory); put("name", name) }
+        val o = json.parseToJsonElement(postJson("/kouros/models/download", body).okText("/kouros/models/download")) as JsonObject
+        return o.str("id") ?: error("The bridge didn't start the download")
+    }
+
+    /** Every model download the bridge knows about, newest first. */
+    suspend fun modelDownloads(): List<ModelDownload> =
+        (getJson("/kouros/models/downloads") as? JsonArray)?.mapNotNull { e ->
+            val o = e as? JsonObject ?: return@mapNotNull null
+            ModelDownload(
+                id = o.str("id") ?: return@mapNotNull null,
+                name = o.str("name") ?: "",
+                directory = o.str("directory") ?: "",
+                state = o.str("state") ?: "running",
+                done = o.dbl("done")?.toLong() ?: 0,
+                total = o.dbl("total")?.toLong()?.takeIf { it > 0 },
+                error = o.str("error"),
+            )
+        } ?: emptyList()
+
+    /** The server's template gallery (`/templates/index.json`); empty when its frontend has none. */
+    suspend fun templates(): List<TemplateEntry> =
+        runCatching { TemplateCatalog.parse(getJson("/templates/index.json")) }.getOrDefault(emptyList())
+
+    /** A template's workflow JSON, as the desktop would load it. */
+    suspend fun templateWorkflow(t: TemplateEntry): String =
+        http.get(endpoint.http(t.workflowPath)) { auth() }.okText(t.workflowPath)
+
+    /**
+     * Every file in the output folder, newest first (`/internal/files/output`), or null when the
+     * server doesn't offer the listing. Unlike history, it survives server restarts.
+     */
+    suspend fun outputFiles(): List<OutputItem>? = runCatching {
+        (getJson("/internal/files/output") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.let(Outputs::fromListing) }
+    }.getOrNull()
+
     /** The server's recent console output (`/internal/logs/raw`), oldest first. */
     suspend fun logs(): List<LogLine> {
         val o = getJson("/internal/logs/raw") as? JsonObject ?: return emptyList()

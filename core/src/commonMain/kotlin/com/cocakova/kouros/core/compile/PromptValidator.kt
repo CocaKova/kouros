@@ -47,8 +47,11 @@ object PromptValidator {
     fun checkChoice(id: String, cls: String, spec: InputDef, v: JsonElement): Issue? {
         if (spec.widgetType != "COMBO") return null
         val choices = spec.choices ?: return null
-        if (choices.isEmpty() || v is JsonArray) return null // linked, or a dynamic list
+        if (v is JsonArray) return null // linked
         val s = (v as? JsonPrimitive)?.contentOrNull ?: return null
+        // An empty list is usually filled at run time — except a model folder with nothing in
+        // it yet, which is exactly what a new server looks like. A model file there is missing.
+        if (choices.isEmpty()) return if (MODEL_FILE.containsMatchIn(s)) Issue(Kind.BAD_CHOICE, id, spec.name, s, "$cls.${spec.name}: '$s' is not available on this server") else null
         val allowed = choices.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
         if (s in allowed) return null
         // Media pickers accept annotated names ("x.png [output]") and freshly uploaded files.
@@ -73,5 +76,6 @@ object PromptValidator {
         }
     }
 
+    private val MODEL_FILE = Regex("""\.(safetensors|ckpt|pt|pth|bin|gguf|sft|onnx)$""", RegexOption.IGNORE_CASE)
     private val DYNAMIC_ONLY = setOf(WorkflowCompiler.AUTOGROW, "COMFY_MATCHTYPE_V3")
 }

@@ -21,6 +21,10 @@ import com.cocakova.kouros.net.ServerSession
 import com.cocakova.kouros.run.RunCoordinator
 import com.cocakova.kouros.core.form.WorkflowTraits
 import com.cocakova.kouros.core.form.References
+import com.cocakova.kouros.core.form.FormLayout
+import com.cocakova.kouros.core.form.ModelNeed
+import com.cocakova.kouros.core.form.ModelNeeds
+import com.cocakova.kouros.core.api.ModelDownload
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +50,7 @@ sealed interface RunScreenState {
     data class Ready(
         val workflow: WorkflowEntity,
         val template: RunTemplate,
+        /** The form as the person arranged it ([layout] over [baseForm]). */
         val form: Form,
         val values: Map<String, JsonElement>,
         val issues: List<PromptValidator.Issue>,
@@ -57,6 +62,14 @@ sealed interface RunScreenState {
         /** Reference-image slots the workflow leaves free, and the photos added to them (server input paths). */
         val references: References = References(emptyList()),
         val refs: List<String> = emptyList(),
+        /** The form as the engine chose it; hidden fields still run with their values. */
+        val baseForm: Form = form,
+        val layout: FormLayout = FormLayout(),
+        /** Model files the workflow asks for that the server doesn't have. */
+        val missing: List<ModelNeed> = emptyList(),
+        val modelLinks: Map<String, ModelNeeds.Link> = emptyMap(),
+        /** The server's bridge can fetch missing models itself. */
+        val canDownload: Boolean = false,
     ) : RunScreenState
 }
 
@@ -107,18 +120,31 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         val stamp = "${w.modified}|${s.objectInfoHash}|${text.hashCode()}"
         val template = app.workflows.cachedTemplate(w.key, stamp).takeUnless { refresh }
             ?: compileTemplate(s, text, oi).also { app.workflows.cacheTemplate(w.key, stamp, it) }
-        val form = withContext(Dispatchers.Default) { FormEngine(oi).build(template.compiled, template.workflow) }
+        val baseForm = withContext(Dispatchers.Default) { FormEngine(oi).build(template.compiled, template.workflow) }
+        val layout = FormLayout.decode(w.formConfig)
+        val form = layout.apply(baseForm)
         val traits = WorkflowTraits.of(template.prompt, oi)
         app.workflows.saveTraits(w, traits)
         val saved = savedValues(w)
-        val keys = form.all.map { it.key }.toSet()
+        val keys = baseForm.all.map { it.key }.toSet()
         val restored = saved.filterKeys { it in keys }
-        val values = form.all.associate { it.key to (restored[it.key] ?: it.initial) }
-        val controls = form.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
+        val values = baseForm.all.associate { it.key to (restored[it.key] ?: it.initial) }
+        val controls = baseForm.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
         val references = References.of(template.prompt, oi)
         val refs = (saved[REFS] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty().take(references.capacity)
-        val base = RunScreenState.Ready(w, template, form, values, emptyList(), oi, controls, traits, references, refs)
-        return base.copy(issues = validate(base))
+        val links = template.workflow?.raw?.let(ModelNeeds::links).orEmpty()
+        val canDownload = runCatching { s.client.bridge()?.canDownloadModels == true }.getOrDefault(false)
+        val base = RunScreenState.Ready(
+            w, template, form, values, emptyList(), oi, controls, traits, references, refs,
+            baseForm = baseForm, layout = layout, modelLinks = links, canDownload = canDownload,
+        )
+        return withIssues(base)
+    }
+
+    /** [st] with its issues and missing models worked out for its current values. */
+    private fun withIssues(st: RunScreenState.Ready, values: Map<String, JsonElement> = st.values): RunScreenState.Ready {
+        val issues = validate(st, values)
+        return st.copy(values = values, issues = issues, missing = ModelNeeds.missing(issues, st.modelLinks))
     }
 
     private suspend fun compileTemplate(s: ServerSession, text: String, oi: ObjectInfo): RunTemplate {
@@ -150,7 +176,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
 
     /** The prompt to queue: the form's values applied, then the added reference photos wired in. */
     private fun currentPrompt(st: RunScreenState.Ready, values: Map<String, JsonElement> = st.values): JsonObject {
-        val applied = FormEngine.apply(st.template.prompt, st.form.all.mapNotNull { f -> values[f.key]?.let { f to it } }.toMap())
+        val applied = FormEngine.apply(st.template.prompt, st.baseForm.all.mapNotNull { f -> values[f.key]?.let { f to it } }.toMap())
         val loader = References.loaderClass(st.objectInfo) ?: return applied
         return st.references.inject(applied, st.refs, loader)
     }
@@ -166,8 +192,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
     fun set(field: FormField, value: JsonElement) {
         _state.update { st ->
             if (st !is RunScreenState.Ready) st else {
-                val v = st.values + (field.key to value)
-                st.copy(values = v, issues = validate(st, v))
+                withIssues(st, st.values + (field.key to value))
             }
         }
         saveDraft()
@@ -228,7 +253,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         uploadToServer(uri)?.let { path ->
             _state.update { st ->
                 if (st !is RunScreenState.Ready || st.refs.size >= st.references.capacity) st
-                else st.copy(refs = st.refs + path).let { it.copy(issues = validate(it)) }
+                else withIssues(st.copy(refs = st.refs + path))
             }
             saveDraft()
         }
@@ -245,7 +270,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
 
     fun removeReference(index: Int) {
         _state.update { st ->
-            if (st !is RunScreenState.Ready) st else st.copy(refs = st.refs.filterIndexed { i, _ -> i != index }).let { it.copy(issues = validate(it)) }
+            if (st !is RunScreenState.Ready) st else withIssues(st.copy(refs = st.refs.filterIndexed { i, _ -> i != index }))
         }
         saveDraft()
     }
@@ -282,7 +307,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
                 is RunCoordinator.Submitted.Ok -> {
                     _lastRun.value = r.promptId
                     app.db.workflows().saveValues(st.workflow.key, valuesJson)
-                    values = advanceSeeds(st.form, values, (_state.value as? RunScreenState.Ready)?.controls ?: st.controls)
+                    values = advanceSeeds(st.baseForm, values, (_state.value as? RunScreenState.Ready)?.controls ?: st.controls)
                 }
                 is RunCoordinator.Submitted.Rejected -> {
                     _message.value = r.message + describeNodeErrors(r.nodeErrors, st)
@@ -318,6 +343,76 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         val msg = ((node?.get("errors") as? kotlinx.serialization.json.JsonArray)?.firstOrNull() as? JsonObject)
             ?.let { e -> listOfNotNull((e["message"] as? JsonPrimitive)?.content, (e["details"] as? JsonPrimitive)?.content).joinToString(": ") }
         return "\n$cls" + (msg?.let { " — $it" } ?: "")
+    }
+
+    // ── the person's layout and presets ─────────────────────────────────────────
+
+    /** Changes the layout with [edit] (given the layout and the form as shown), and saves it. */
+    fun editLayout(edit: (FormLayout, Form) -> FormLayout) {
+        val st = _state.value as? RunScreenState.Ready ?: return
+        val layout = edit(st.layout, st.form)
+        _state.value = st.copy(layout = layout, form = layout.apply(st.baseForm))
+        viewModelScope.launch { app.db.workflows().saveConfig(st.workflow.key, layout.encode()) }
+    }
+
+    fun savePreset(name: String) {
+        val st = _state.value as? RunScreenState.Ready ?: return
+        if (name.isBlank()) return
+        val values = JsonObject(st.values + (REFS to JsonArray(st.refs.map { JsonPrimitive(it) })))
+        editLayout { l, _ -> l.savePreset(name, values) }
+        _message.value = "Saved \"${name.trim()}\""
+    }
+
+    fun deletePreset(name: String) = editLayout { l, _ -> l.deletePreset(name) }
+
+    /** Loads a preset's values (fields the workflow no longer has are skipped). */
+    fun applyPreset(name: String) {
+        val preset = (_state.value as? RunScreenState.Ready)?.layout?.presets?.get(name) ?: return
+        _state.update { st ->
+            if (st !is RunScreenState.Ready) st else {
+                val keys = st.baseForm.all.map { it.key }.toSet()
+                val refs = (preset[REFS] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.take(st.references.capacity) ?: st.refs
+                withIssues(st.copy(refs = refs), st.values + preset.filterKeys { it in keys })
+            }
+        }
+        saveDraft()
+        _message.value = "Loaded \"$name\""
+    }
+
+    // ── missing models ──────────────────────────────────────────────────────────
+
+    private val _downloads = MutableStateFlow<List<ModelDownload>>(emptyList())
+    val downloads: StateFlow<List<ModelDownload>> = _downloads.asStateFlow()
+    private var watching: Job? = null
+
+    /** Asks the server's bridge to fetch [need], then follows it until every download settles. */
+    fun download(need: ModelNeed) = viewModelScope.launch {
+        val s = session ?: return@launch
+        val url = need.url ?: return@launch
+        val dir = need.directory ?: return@launch
+        runCatching { s.client.downloadModel(url, dir, need.name.substringAfterLast('/')) }
+            .onFailure { _message.value = "Couldn't start the download: ${it.message}"; return@launch }
+        watchDownloads()
+    }
+
+    private fun watchDownloads() {
+        if (watching?.isActive == true) return
+        watching = viewModelScope.launch {
+            val s = session ?: return@launch
+            while (true) {
+                val list = runCatching { s.client.modelDownloads() }.getOrNull() ?: break
+                _downloads.value = list
+                if (list.none { it.running }) break
+                delay(1500)
+            }
+            // Whatever finished is now a choice the server offers: check again.
+            val st = _state.value as? RunScreenState.Ready ?: return@launch
+            if (_downloads.value.any { d -> d.state == "done" && st.missing.any { it.name.substringAfterLast('/') == d.name } }) {
+                val oi = s.objectInfo(true)
+                _state.update { cur -> if (cur is RunScreenState.Ready) withIssues(cur.copy(objectInfo = oi)) else cur }
+            }
+            _downloads.value.firstOrNull { it.state == "failed" && it.error != "cancelled" }?.let { _message.value = "${it.name}: ${it.error}" }
+        }
     }
 
     fun cancel() = viewModelScope.launch { lastRun.value?.let { app.runs.cancel(it) } }

@@ -200,6 +200,7 @@ fun QueueScreen(pad: PaddingValues, onConsole: (String) -> Unit = {}, onOpenResu
                 HistoryRow(
                     e, names[e.promptId], session, isSel, selecting,
                     modifier = Modifier.combinedClickable(
+                        onClickLabel = if (selecting) "Select" else "Open", onLongClickLabel = "Select",
                         onClick = {
                             if (selecting) selected = if (isSel) selected - e.promptId else selected + e.promptId
                             else onOpenResult(s.id, e.promptId)

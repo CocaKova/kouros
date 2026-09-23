@@ -45,6 +45,12 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -130,10 +136,26 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
         if (uri != null && f != null) model.upload(f, uri)
     }
     // Reference photos: several at once, as many as the workflow has room for.
+    val downloads by model.downloads.collectAsState()
+    var arranging by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var savingPreset by remember { mutableStateOf(false) }
     val readyNow = state as? RunScreenState.Ready
     val refRoom = readyNow?.let { it.references.capacity - it.refs.size } ?: 0
     val pickRefs = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(maxOf(2, minOf(refRoom, 16)))) { uris ->
         uris.take(maxOf(refRoom, 0)).forEach { model.addReference(it) }
+    }
+
+    // Notifications are asked for at the first Run — when it's clear what they are for — and once only.
+    val context = LocalContext.current
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    fun runWithNotifications(n: Int) {
+        val prefs = context.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !app.notifier.canPost() && !prefs.getBoolean("asked_notifications", false)) {
+            prefs.edit().putBoolean("asked_notifications", true).apply()
+            askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        model.run(n)
     }
 
     val ready = state as? RunScreenState.Ready
@@ -147,17 +169,36 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                     }
                 },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
-                actions = { IconButton(onClick = { model.load(true) }) { Icon(Icons.Outlined.Refresh, "Reload from server") } },
+                actions = {
+                    if (arranging) TextButton(onClick = { arranging = false }) { Text("Done") }
+                    else Box {
+                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Outlined.MoreVert, "More options") }
+                        DropdownMenu(menuOpen, { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Arrange fields") }, leadingIcon = { Icon(Icons.Outlined.Tune, null) },
+                                enabled = ready != null, onClick = { menuOpen = false; arranging = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Save as preset") }, leadingIcon = { Icon(Icons.Outlined.BookmarkAdd, null) },
+                                enabled = ready != null, onClick = { menuOpen = false; savingPreset = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Reload from server") }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) },
+                                onClick = { menuOpen = false; model.load(true) },
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
-            if (ready != null) RunBar(
+            if (ready != null && !arranging) RunBar(
                 busy = busy,
                 running = progress != null && !progress.phase.isTerminal,
                 issues = ready.issues,
-                onRun = { n -> model.run(n) },
+                onRun = { n -> runWithNotifications(n) },
                 onCancel = { model.cancel() },
             )
         },
@@ -189,7 +230,22 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
-                    if (st.issues.isNotEmpty()) item { Issues(st.issues, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+                    if (st.missing.isNotEmpty()) item(key = "missing") {
+                        MissingModels(st.missing, downloads, st.canDownload, onDownload = { model.download(it) }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                    }
+                    // Missing model files are covered above; the rest of what the server may refuse, here.
+                    val otherIssues = st.issues.filterNot { i -> i.kind == PromptValidator.Kind.BAD_CHOICE && st.missing.any { it.name == i.value } }
+                    if (otherIssues.isNotEmpty()) item { Issues(otherIssues, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+                    if (arranging) {
+                        item(key = "arrange") { ArrangeFields(st, onEdit = { model.editLayout(it) }, onDone = { arranging = false }, modifier = Modifier.padding(vertical = 8.dp)) }
+                        return@LazyColumn
+                    }
+                    if (st.layout.presets.isNotEmpty()) item(key = "presets") {
+                        PresetRow(
+                            st.layout.presets.keys, onApply = { model.applyPreset(it) }, onSave = { model.savePreset(it) }, onDelete = { model.deletePreset(it) },
+                            modifier = Modifier.padding(vertical = 6.dp),
+                        )
+                    }
                     if (st.template.source == TemplateSource.COMPILED_UNSURE) item { UnsureNote(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
                     items(st.form.hero, key = { it.key }) { f ->
                         FieldControl(
@@ -239,6 +295,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                         }
                     }
                 }
+                if (savingPreset) PresetNameDialog(onSave = { model.savePreset(it); savingPreset = false }, onDismiss = { savingPreset = false })
                 enhancing?.let { f ->
                     EnhanceSheet(
                         request = assistRequest(st, f),
@@ -395,7 +452,7 @@ private fun Stage(progress: RunProgress?, lastRunId: String?, workflowKey: Strin
         Box(
             Modifier.fillMaxWidth().aspectRatio(4f / 3f).clip(RoundedCornerShape(24.dp))
                 .background(Brush.radialGradient(listOf(Accent.clay.copy(alpha = 0.18f), MaterialTheme.colorScheme.surfaceContainerLow)))
-                .clickable(enabled = !running && lastDone != null) { lastDone?.let { onOpenResult(it.promptId) } },
+                .clickable(enabled = !running && lastDone != null, onClickLabel = "Open the last result") { lastDone?.let { onOpenResult(it.promptId) } },
             contentAlignment = Alignment.Center,
         ) {
             val finishedOutput = lastDone?.let { r -> RunCoordinator.decodeOutputs(r.outputsJson).firstOrNull { it.kind == MediaKind.IMAGE || it.kind == MediaKind.ANIMATED || it.kind == MediaKind.VIDEO } }
@@ -511,7 +568,7 @@ private fun RunBar(busy: Boolean, running: Boolean, issues: List<PromptValidator
                 colors = ButtonDefaults.buttonColors(containerColor = Accent.clay, contentColor = MaterialTheme.colorScheme.background),
             ) {
                 if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.background)
-                else Text(if (running) "Queue another" else if (count > 1) "Run $count" else "Run", style = MaterialTheme.typography.titleMedium)
+                else Text(if (running) (if (count > 1) "Queue $count" else "Queue") else if (count > 1) "Run $count" else "Run", style = MaterialTheme.typography.titleMedium, maxLines = 1)
             }
         }
     }
