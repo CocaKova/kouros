@@ -1,0 +1,5 @@
+# Kouros's own code, compiled ahead of time on install (profileinstaller applies it for
+# sideloaded installs too). The app is small, so the whole package is marked hot rather than
+# traced path by path; the libraries bring their own profiles.
+HSPLcom/cocakova/kouros/**->**(**)**
+Lcom/cocakova/kouros/**;

@@ -53,6 +53,12 @@ class RunTracker(val promptId: String, prompt: JsonObject, outputClasses: Set<St
         ((n as? JsonObject)?.get("_meta") as? JsonObject)?.str("title") ?: (n as? JsonObject)?.str("class_type") ?: id
     }
     private val expected: Set<String> = reachable(prompt, outputClasses)
+    /** Each node's direct inputs, to tell what must already be finished when a node starts. */
+    private val inputsOf: Map<String, List<String>> = prompt.mapValues { (_, n) ->
+        ((n as? JsonObject)?.get("inputs") as? JsonObject)?.values
+            ?.mapNotNull { v -> if (v is JsonArray && v.size == 2) (v[0] as? JsonPrimitive)?.contentOrNull?.takeIf { it in prompt } else null }
+            ?: emptyList()
+    }
     private val executed = LinkedHashSet<String>()
     private val cached = HashSet<String>()
 
@@ -77,11 +83,17 @@ class RunTracker(val promptId: String, prompt: JsonObject, outputClasses: Set<St
                 e.node == null -> if (s.phase == RunPhase.RUNNING) s.copy(currentNode = null, currentTitle = null, step = 0, steps = 0) else null
                 else -> {
                     s.currentNode?.let { executed += it }
+                    // Everything this node depends on is finished by now; what we never saw run
+                    // was cached. Recovers the count when the socket joined after the server
+                    // announced its cached nodes.
+                    val inferred = ancestors(e.node).filter { it !in executed && it !in cached }
+                    cached += inferred
                     s.copy(
                         phase = RunPhase.RUNNING,
                         startedAtMs = s.startedAtMs ?: nowMs,
                         currentNode = e.node,
                         currentTitle = titleOf(e.displayNode ?: e.node),
+                        totalNodes = if (inferred.isEmpty()) s.totalNodes else (expected - cached).size.coerceAtLeast(executed.size + 1),
                         doneNodes = executed.count { it !in cached },
                         step = 0, steps = 0,
                     )
@@ -110,6 +122,16 @@ class RunTracker(val promptId: String, prompt: JsonObject, outputClasses: Set<St
         } ?: return null
         state = next
         return next
+    }
+
+    private fun ancestors(node: String): Set<String> {
+        val out = HashSet<String>()
+        val stack = ArrayDeque(inputsOf[node].orEmpty())
+        while (stack.isNotEmpty()) {
+            val id = stack.removeLast()
+            if (out.add(id)) stack += inputsOf[id].orEmpty()
+        }
+        return out
     }
 
     /** Authoritative state from `/history`, e.g. after reconnecting. */

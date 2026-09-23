@@ -83,6 +83,19 @@ data class SharedMedia(val uris: List<android.net.Uri>, val mime: String) {
 
 val PendingShare = kotlinx.coroutines.flow.MutableStateFlow<SharedMedia?>(null)
 
+/** Asks the Servers tab to open "Add a server" as soon as it shows. */
+val PendingAddServer = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+/**
+ * Switches tabs the way the tab bar does. Every jump to a tab goes through here: pushing a tab
+ * as an ordinary screen leaves it inside another tab's saved stack, and that tab then keeps
+ * reopening it.
+ */
+private fun NavHostController.tab(route: String) = navigate(route) {
+    popUpTo("workflows") { saveState = true }
+    launchSingleTop = true; restoreState = true
+}
+
 /** Media handed to the run screen of the workflow the person chose; consumed once. */
 object ShareHandoff {
     @Volatile var media: SharedMedia? = null
@@ -105,7 +118,7 @@ fun KourosRoot() {
     }
 
     val share by PendingShare.collectAsState()
-    LaunchedEffect(share) { if (share != null && route != "workflows") nav.navigate("workflows") { launchSingleTop = true } }
+    LaunchedEffect(share) { if (share != null && route != "workflows") nav.tab("workflows") }
 
     Scaffold(
         bottomBar = {
@@ -115,12 +128,7 @@ fun KourosRoot() {
                     tabs.forEach { t ->
                         NavigationBarItem(
                             selected = route == t.route,
-                            onClick = {
-                                nav.navigate(t.route) {
-                                    popUpTo("workflows") { saveState = true }
-                                    launchSingleTop = true; restoreState = true
-                                }
-                            },
+                            onClick = { nav.tab(t.route) },
                             icon = { Icon(t.icon, null) },
                             label = { Text(t.label) },
                             colors = NavigationBarItemDefaults.colors(indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
@@ -152,9 +160,16 @@ fun KourosRoot() {
                         PendingShare.value?.let { ShareHandoff.media = it; PendingShare.value = null }
                         nav.navigate("run/${Uri.encode(key)}")
                     },
-                    onAddServer = { nav.navigate("servers") },
+                    onAddServer = { PendingAddServer.value = true; nav.tab("servers") },
+                    onTemplates = { nav.navigate("templates") },
                     sharing = share,
                     onCancelShare = { PendingShare.value = null },
+                )
+            }
+            composable("templates") {
+                com.cocakova.kouros.ui.workflows.TemplatesScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpen = { key -> nav.navigate("run/${Uri.encode(key)}") { popUpTo("workflows") } },
                 )
             }
             composable("gallery") { GalleryScreen(pad) { s, p, i -> nav.navigate("result/$s/$p/$i") } }
@@ -162,7 +177,9 @@ fun KourosRoot() {
                 QueueScreen(pad, onConsole = { nav.navigate("console/$it") }, onOpenResult = { sid, pid -> nav.navigate("result/$sid/$pid/0") })
             }
             composable("console/{server}") { e -> com.cocakova.kouros.ui.servers.ConsoleScreen(e.arguments!!.getString("server")!!, onBack = { nav.popBackStack() }) }
-            composable("servers") { ServersScreen(pad, onSettings = { nav.navigate("settings") }, onConsole = { nav.navigate("console/$it") }) }
+            composable("servers") {
+                ServersScreen(pad, onSettings = { nav.navigate("settings") }, onConsole = { nav.navigate("console/$it") }, onFirstServer = { nav.tab("workflows") })
+            }
             composable("settings") { com.cocakova.kouros.ui.settings.SettingsScreen(onBack = { nav.popBackStack() }) }
             composable(
                 "run/{key}?remix={remix}",

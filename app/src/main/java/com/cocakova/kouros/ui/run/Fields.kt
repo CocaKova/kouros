@@ -133,7 +133,8 @@ private fun PromptField(field: FormField, value: JsonElement, onChange: (JsonEle
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             value = text, onValueChange = { onChange(JsonPrimitive(it)) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = if (field.role == FieldRole.PROMPT) 120.dp else 72.dp),
+            // Long prompts scroll inside the box instead of pushing the rest of the form away.
+            modifier = Modifier.fillMaxWidth().heightIn(min = if (field.role == FieldRole.PROMPT) 120.dp else 72.dp, max = 280.dp),
             textStyle = MaterialTheme.typography.bodyLarge,
             shape = MaterialTheme.shapes.medium,
             placeholder = { Text(if (field.role == FieldRole.NEGATIVE_PROMPT) "What to avoid" else "Describe it") },

@@ -84,4 +84,10 @@ rsync -a "$HOST:$REMOTE_ROOT/build/ship/" "$OUT/" || echo "  could not fetch bui
 mkdir -p "$REPO_ROOT/app/build/outputs/apk"
 rsync -a --include='*/' --include='*.apk' --exclude='*' \
   "$HOST:$REMOTE_ROOT/app/build/outputs/apk/" "$REPO_ROOT/app/build/outputs/apk/" 2>/dev/null
+
+# A green release build gets the real signature here, where the release key lives.
+if [ "$RC" = 0 ] && [[ " ${args[*]} " == *" --release "* ]] && grep -q '^kouros.keystore=' "$REPO_ROOT/local.properties" 2>/dev/null; then
+  echo "── sign with the release key (here, not on $HOST)"
+  "$REPO_ROOT/tools/sign-release.sh" || { echo "  signing failed" >&2; exit 1; }
+fi
 exit $RC

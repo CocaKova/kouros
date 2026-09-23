@@ -75,7 +75,8 @@ fun ResultViewer(serverId: String, promptId: String, startIndex: Int, onBack: ()
     val run by produceState<RunEntity?>(null, promptId) { value = app.db.runs().get(promptId) }
     // Outputs: this phone's record when it has one, else the server's history.
     val items by produceState<List<OutputItem>>(emptyList(), promptId, session, run) {
-        value = run?.let { RunCoordinator.decodeOutputs(it.outputsJson) }
+        value = FileTile.ref(promptId)?.let { f -> listOf(OutputItem("", Outputs.byExtension(f.filename) ?: com.cocakova.kouros.core.api.MediaKind.FILE, f)) }
+            ?: run?.let { RunCoordinator.decodeOutputs(it.outputsJson) }
             ?: session?.let { s -> runCatching { s.client.historyFor(promptId) }.getOrNull() }
                 ?.outputs?.flatMap { (id, o) -> Outputs.classify(id, o) }?.filter { !it.isTemp }
             ?: emptyList()

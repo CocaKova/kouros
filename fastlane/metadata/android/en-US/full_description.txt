@@ -1,0 +1,21 @@
+Kouros turns any workflow you have saved in ComfyUI into a clean phone form, runs it on your own server, and shows it forming live: in the app, in the notification and on the lock screen.
+
+<b>Any workflow, as it is</b>
+Subgraphs, bypassed nodes, reroutes and custom nodes. Kouros reads the graph the same way ComfyUI's own editor does and builds a form from the parts that matter: prompts, images, seed, size and steps. Pin, reorder, rename or hide fields, and save sets of values as presets.
+
+<b>Start from nothing</b>
+New server? Browse its template gallery, add one to your workflows, and Kouros tells you which models are missing, where each goes and where to get it.
+
+<b>Runs that survive</b>
+Progress in the notification and a live status chip on Android 16. Close the app or lose signal and the run carries on; the result lands in the notification with Save, Share and Re-run.
+
+<b>Run the server too</b>
+Every client's queue and history, the whole output folder, live logs, model folders, and buttons to unload models and see how much memory came back.
+
+<b>Kouros Bridge (optional)</b>
+A small ComfyUI extension that lets the app delete output files and fetch missing models straight into the right folder.
+
+<b>Private by design</b>
+Kouros talks only to your own server, on your home network, over Tailscale or behind a reverse proxy. No account and no cloud.
+
+ComfyUI has no password of its own: keep it off the open internet.

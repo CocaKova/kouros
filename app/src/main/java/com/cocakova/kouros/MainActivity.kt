@@ -18,13 +18,10 @@ import com.cocakova.kouros.ui.KourosRoot
 import com.cocakova.kouros.ui.theme.KourosTheme
 
 class MainActivity : ComponentActivity() {
-    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handle(intent)
-        if (Build.VERSION.SDK_INT >= 33 && !app.notifier.canPost()) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent {
             val dark = isKourosDark()
             // Bar icons follow the app's theme, not the system's, when the two differ.

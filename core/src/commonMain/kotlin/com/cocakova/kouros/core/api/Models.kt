@@ -116,6 +116,13 @@ data class DeviceStats(val name: String, val type: String, val vramTotal: Long?,
 data class Bridge(val version: Int, val features: Set<String>) {
     val canDelete: Boolean get() = "outputs.delete" in features
     val hasMemory: Boolean get() = "memory" in features
+    val canDownloadModels: Boolean get() = "models.download" in features
+}
+
+/** A model the bridge is fetching (or fetched) into a model folder. [state]: running, done, failed. */
+data class ModelDownload(val id: String, val name: String, val directory: String, val state: String, val done: Long, val total: Long?, val error: String?) {
+    val running: Boolean get() = state == "running"
+    val fraction: Float? get() = total?.let { (done.toDouble() / it).toFloat().coerceIn(0f, 1f) }
 }
 
 data class DeleteReport(val deleted: List<FileRef>, val missing: List<FileRef>, val refused: List<FileRef>)

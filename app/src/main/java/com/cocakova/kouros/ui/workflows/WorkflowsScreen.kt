@@ -54,6 +54,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FileOpen
+import androidx.compose.material.icons.outlined.AutoAwesomeMosaic
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.filled.PushPin
@@ -99,6 +100,7 @@ fun WorkflowsScreen(
     pad: PaddingValues,
     onOpen: (String) -> Unit,
     onAddServer: () -> Unit,
+    onTemplates: () -> Unit = {},
     sharing: com.cocakova.kouros.ui.SharedMedia? = null,
     onCancelShare: () -> Unit = {},
 ) {
@@ -160,6 +162,7 @@ fun WorkflowsScreen(
         LazyColumn(contentPadding = PaddingValues(bottom = Space.xl)) {
             item {
                 ScreenHeader("Workflows", overline = s.name, status = { StatusDot(conn, 8.dp) }) {
+                    IconButton(onClick = onTemplates) { Icon(Icons.Outlined.AutoAwesomeMosaic, "Browse templates") }
                     IconButton(onClick = { importer.launch(arrayOf("application/json", "*/*")) }) { Icon(Icons.Outlined.FileOpen, "Open a workflow file") }
                 }
             }
@@ -197,8 +200,10 @@ fun WorkflowsScreen(
             if (list != null && all.isEmpty() && !refreshing) item {
                 EmptyState(
                     "No saved workflows",
-                    "Save a workflow in ComfyUI on your desktop (Workflow → Save) and pull down to refresh — or open a workflow file from this phone.",
-                )
+                    "Start from one of your server's templates, or save a workflow in ComfyUI on your desktop (Workflow → Save) and pull down to refresh.",
+                ) {
+                    Button(onClick = onTemplates) { Text("Browse templates") }
+                }
             }
             if (pinned.isNotEmpty()) {
                 item(key = "h:pinned") { SectionLabel("Pinned", pinned.size) }
@@ -348,7 +353,7 @@ private fun WorkflowCard(w: WorkflowEntity, showFolder: Boolean, onClick: () -> 
     val haptics = LocalHapticFeedback.current
     Row(
         Modifier.fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onMore() })
+            .combinedClickable(onClickLabel = "Open", onLongClickLabel = "More actions", onClick = onClick, onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onMore() })
             .padding(horizontal = Space.gutter, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

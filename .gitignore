@@ -21,3 +21,7 @@ captures/
 dist/
 *.apk
 *.aab
+
+# Python
+__pycache__/
+*.pyc

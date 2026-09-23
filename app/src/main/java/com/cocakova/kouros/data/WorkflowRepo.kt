@@ -119,6 +119,22 @@ class WorkflowRepo(private val app: KourosApp) {
         dao.delete(w.key)
     }
 
+    /**
+     * Saves one of the server's templates into its workflows (so the desktop has it too), under
+     * the template's title — numbered if the name is taken. Returns the new workflow's key.
+     */
+    suspend fun addFromTemplate(session: ServerSession, t: com.cocakova.kouros.core.api.TemplateEntry): String {
+        val body = session.client.templateWorkflow(t)
+        val base = t.title.replace(Regex("""[\\/:*?"<>|]+"""), " ").replace(Regex("""\s+"""), " ").trim().ifEmpty { t.name }
+        val taken = dao.forServerOnce(session.server.id).map { it.path.lowercase() }.toSet()
+        val path = generateSequence(1) { it + 1 }.map { n -> if (n == 1) "$base.json" else "$base $n.json" }.first { it.lowercase() !in taken }
+        session.client.writeUserdata("workflows/$path", body, overwrite = false)
+        val key = key(session.server.id, SOURCE_USERDATA, path)
+        dao.upsert(WorkflowEntity(key, session.server.id, SOURCE_USERDATA, path, path.removeSuffix(".json"), body, lastOpenedAt = System.currentTimeMillis()))
+        app.appScope.launch { runCatching { sync(session) } }
+        return key
+    }
+
     suspend fun importLocal(serverId: String, name: String, json: String): String {
         val k = key(serverId, SOURCE_LOCAL, "${System.currentTimeMillis()}-$name")
         dao.upsert(WorkflowEntity(k, serverId, SOURCE_LOCAL, name, name.removeSuffix(".json"), json, lastOpenedAt = System.currentTimeMillis()))
