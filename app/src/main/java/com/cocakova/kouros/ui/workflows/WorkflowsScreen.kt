@@ -1,6 +1,24 @@
 package com.cocakova.kouros.ui.workflows
 
+import com.cocakova.kouros.ui.theme.fieldColors
 import android.net.Uri
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Notes
+import androidx.compose.material.icons.outlined.ViewInAr
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.cocakova.kouros.core.form.OutputKind
+import com.cocakova.kouros.ui.theme.Space
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -105,19 +123,36 @@ fun WorkflowsScreen(
         }
     }
 
+    var kindFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val all = list.orEmpty()
+    // The kinds present, in the engine's precedence order, with how many of each.
+    val kinds = remember(all) {
+        val counts = all.groupingBy { it.kind ?: "" }.eachCount()
+        (OutputKind.entries.map { it.name } + "OTHER").mapNotNull { k -> counts[k]?.let { k to it } }
+    }
+
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refresh() }, modifier = Modifier.fillMaxSize().padding(pad)) {
-        val items = list.orEmpty().filter { query.isBlank() || it.name.contains(query, ignoreCase = true) || it.path.contains(query, ignoreCase = true) }
-        LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+        val shown = all.filter { w ->
+            (query.isBlank() || w.name.contains(query, ignoreCase = true) || w.path.contains(query, ignoreCase = true)) &&
+                (kindFilter == null || w.kind == kindFilter)
+        }
+        val pinned = shown.filter { it.pinned }
+        // The rest, by the folder the desktop saved them in: top level first, then folders A→Z.
+        val byFolder = shown.filterNot { it.pinned }.groupBy { it.path.substringBeforeLast('/', "") }
+            .toSortedMap(compareBy<String>({ it.isNotEmpty() }, { it.lowercase() }))
+        val hasFolders = byFolder.keys.any { it.isNotEmpty() }
+
+        LazyColumn(contentPadding = PaddingValues(bottom = Space.xl)) {
             item {
                 ScreenHeader("Workflows", overline = s.name) {
                     StatusDot(conn, 10.dp)
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(Space.xs))
                     IconButton(onClick = { importer.launch(arrayOf("application/json", "*/*")) }) { Icon(Icons.Outlined.FileOpen, "Open a workflow file") }
                 }
             }
             sharing?.let { sh ->
                 item {
-                    com.cocakova.kouros.ui.components.Slab(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    com.cocakova.kouros.ui.components.Slab(Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = 6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "Choose a workflow for your ${if (sh.uris.size > 1) "${sh.uris.size} ${sh.kind}s" else sh.kind}",
@@ -128,51 +163,113 @@ fun WorkflowsScreen(
                     }
                 }
             }
-            if ((list?.size ?: 0) > 6) item {
+            if (all.size > 6) item {
                 OutlinedTextField(
                     query, { query = it }, placeholder = { Text("Search") }, singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = Space.xs),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = fieldColors(),
                 )
             }
-            error?.let { e -> item { Text(e, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) } }
-            if (list != null && list!!.isEmpty() && !refreshing) item {
+            if (kinds.size > 1) item {
+                LazyRow(contentPadding = PaddingValues(horizontal = Space.gutter, vertical = Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    item { KindChip("All", all.size, null, kindFilter == null) { kindFilter = null } }
+                    items(kinds, key = { it.first }) { (k, n) ->
+                        KindChip(kindLabel(k), n, k, kindFilter == k) { kindFilter = if (kindFilter == k) null else k }
+                    }
+                }
+            }
+            error?.let { e -> item { Text(e, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp, vertical = Space.s)) } }
+            if (list != null && all.isEmpty() && !refreshing) item {
                 EmptyState(
                     "No saved workflows",
                     "Save a workflow in ComfyUI on your desktop (Workflow → Save) and pull down to refresh — or open a workflow file from this phone.",
                 )
             }
-            items(items, key = { it.key }) { w -> WorkflowCard(w, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }) }
+            if (pinned.isNotEmpty()) {
+                item(key = "h:pinned") { SectionLabel("Pinned", pinned.size) }
+                items(pinned, key = { "p:" + it.key }) { w -> WorkflowCard(w, showFolder = true, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }) }
+            }
+            byFolder.forEach { (folder, rows) ->
+                val header = when {
+                    hasFolders -> folder.ifEmpty { "Top level" }
+                    pinned.isNotEmpty() -> "Everything else"
+                    else -> null
+                }
+                header?.let { h -> item(key = "h:$folder") { SectionLabel(h, rows.size) } }
+                items(rows, key = { it.key }) { w -> WorkflowCard(w, showFolder = false, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }) }
+            }
         }
     }
 }
 
+private fun kindLabel(k: String): String = runCatching { OutputKind.valueOf(k).label }.getOrDefault("Other")
+
+private fun kindIcon(k: String?): ImageVector = when (k) {
+    "IMAGE" -> Icons.Outlined.Image
+    "VIDEO" -> Icons.Outlined.Movie
+    "AUDIO" -> Icons.Outlined.MusicNote
+    "MODEL3D" -> Icons.Outlined.ViewInAr
+    "TEXT" -> Icons.Outlined.Notes
+    else -> Icons.Outlined.AccountTree
+}
+
 @Composable
-private fun WorkflowCard(w: WorkflowEntity, onClick: () -> Unit, onPin: () -> Unit) {
+private fun KindChip(label: String, count: Int, kind: String?, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected, onClick = onClick,
+        label = { Text("$label  $count") },
+        leadingIcon = kind?.let { { Icon(kindIcon(it), null, Modifier.size(16.dp)) } },
+        shape = MaterialTheme.shapes.small,
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+            selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+            selectedLeadingIconColor = Accent.clay,
+        ),
+        border = FilterChipDefaults.filterChipBorder(true, selected, borderColor = MaterialTheme.colorScheme.outlineVariant, selectedBorderColor = Accent.clay.copy(alpha = 0.5f)),
+    )
+}
+
+@Composable
+private fun SectionLabel(text: String, count: Int) {
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = Space.l, bottom = Space.xs), verticalAlignment = Alignment.CenterVertically) {
+        Text(text.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text("$count", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WorkflowCard(w: WorkflowEntity, showFolder: Boolean, onClick: () -> Unit, onPin: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onPin() })
+            .padding(horizontal = Space.gutter, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // A monogram tile tinted by the workflow's name: stable, distinct, no network needed.
+        // A tile showing what it makes, warmed by the name's hash so neighbours differ.
         val hue = (w.name.hashCode().toLong() and 0xFFFF).toFloat() / 0xFFFF
         Box(
-            Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
-                .background(Brush.linearGradient(listOf(Accent.clayDeep.copy(alpha = 0.55f + hue * 0.3f), Accent.clay.copy(alpha = 0.25f + hue * 0.4f)))),
+            Modifier.size(48.dp).clip(MaterialTheme.shapes.medium)
+                .background(Brush.linearGradient(listOf(Accent.clayDeep.copy(alpha = 0.45f + hue * 0.3f), Accent.clay.copy(alpha = 0.18f + hue * 0.3f)))),
             contentAlignment = Alignment.Center,
         ) {
-            Text(w.name.firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "·", style = MaterialTheme.typography.headlineSmall, color = Accent.ember)
+            Icon(kindIcon(w.kind), null, tint = Accent.ember, modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(w.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val folder = w.path.substringBeforeLast('/', "").takeIf { it.isNotEmpty() }
+            val folder = w.path.substringBeforeLast('/', "").takeIf { it.isNotEmpty() && showFolder }
+            val takes = w.inputs?.split(',')?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }?.let { "from " + it.joinToString(" + ") }
             val meta = listOfNotNull(
                 folder,
+                takes,
                 if (w.source == "local") "on this phone" else null,
                 w.modified?.let { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date((it * 1000).toLong())) },
             ).joinToString(" · ")
-            if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         IconButton(onClick = onPin) {
             Icon(if (w.pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, if (w.pinned) "Unpin" else "Pin",

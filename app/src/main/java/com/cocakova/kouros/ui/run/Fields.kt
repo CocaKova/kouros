@@ -1,5 +1,7 @@
 package com.cocakova.kouros.ui.run
 
+import androidx.compose.material.icons.outlined.AutoAwesome
+import com.cocakova.kouros.ui.theme.fieldColors
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -88,12 +90,14 @@ fun FieldControl(
     modifier: Modifier = Modifier,
     control: String? = field.control,
     onControl: (String) -> Unit = {},
+    /** Opens the prompt assistant for this field; null when none is set up. */
+    onEnhance: (() -> Unit)? = null,
 ) {
     val spec = field.spec
     when {
         field.role == FieldRole.MEDIA -> MediaField(field, value, session, uploading, onPickMedia, modifier)
         field.role == FieldRole.SEED -> SeedField(field, value, onChange, modifier, control ?: "randomize", onControl)
-        spec.isMultilineText() -> PromptField(field, value, onChange, modifier)
+        spec.isMultilineText() -> PromptField(field, value, onChange, modifier, onEnhance)
         spec.widgetType == "BOOLEAN" -> ToggleField(field, value, onChange, modifier)
         spec.widgetType == "COMBO" -> ChoiceField(field, value, onChange, modifier)
         spec.widgetType == "INT" || spec.widgetType == "FLOAT" -> NumberField(field, value, onChange, modifier)
@@ -114,17 +118,26 @@ private fun Label(field: FormField, trailing: @Composable () -> Unit = {}) {
 }
 
 @Composable
-private fun PromptField(field: FormField, value: JsonElement, onChange: (JsonElement) -> Unit, modifier: Modifier) {
+private fun PromptField(field: FormField, value: JsonElement, onChange: (JsonElement) -> Unit, modifier: Modifier, onEnhance: (() -> Unit)?) {
     val text = (value as? JsonPrimitive)?.contentOrNull ?: ""
     Column(modifier) {
-        Label(field) { Text("${text.length}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Label(field) {
+            Text("${text.length}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            onEnhance?.let { go ->
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = go, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.AutoAwesome, "Enhance with the assistant", tint = Accent.clay, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             value = text, onValueChange = { onChange(JsonPrimitive(it)) },
             modifier = Modifier.fillMaxWidth().heightIn(min = if (field.role == FieldRole.PROMPT) 120.dp else 72.dp),
             textStyle = MaterialTheme.typography.bodyLarge,
-            shape = RoundedCornerShape(14.dp),
+            shape = MaterialTheme.shapes.medium,
             placeholder = { Text(if (field.role == FieldRole.NEGATIVE_PROMPT) "What to avoid" else "Describe it") },
+            colors = fieldColors(),
         )
     }
 }
@@ -136,7 +149,8 @@ private fun TextField(field: FormField, value: JsonElement, onChange: (JsonEleme
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             (value as? JsonPrimitive)?.contentOrNull ?: value.toString(), { onChange(JsonPrimitive(it)) },
-            singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+            singleLine = true, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+            colors = fieldColors(),
         )
     }
 }
@@ -174,7 +188,8 @@ private fun NumberField(field: FormField, value: JsonElement, onChange: (JsonEle
                 singleLine = true, modifier = Modifier.width(112.dp),
                 textStyle = MaterialTheme.typography.bodyMedium,
                 keyboardOptions = KeyboardOptions(keyboardType = if (isInt) KeyboardType.Number else KeyboardType.Decimal),
-                shape = RoundedCornerShape(10.dp),
+                shape = MaterialTheme.shapes.small,
+                colors = fieldColors(),
             )
         }
         if (sliderable) {
@@ -204,8 +219,9 @@ private fun SeedField(field: FormField, value: JsonElement, onChange: (JsonEleme
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 (value as? JsonPrimitive)?.contentOrNull ?: "", { t -> t.toLongOrNull()?.let { onChange(JsonPrimitive(it)) } },
-                singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp),
+                singleLine = true, modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                colors = fieldColors(),
             )
             IconButton(onClick = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -240,8 +256,8 @@ private fun ChoiceField(field: FormField, value: JsonElement, onChange: (JsonEle
         Label(field)
         Spacer(Modifier.height(6.dp))
         Surface(
-            onClick = { open = true }, shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = MaterialTheme.colorScheme.surface,
+            onClick = { open = true }, shape = MaterialTheme.shapes.medium,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), color = MaterialTheme.colorScheme.surfaceContainerLow,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -260,7 +276,8 @@ private fun ChoiceField(field: FormField, value: JsonElement, onChange: (JsonEle
                 if (choices.size > 8) OutlinedTextField(
                     query, { query = it }, placeholder = { Text("Search") }, singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), shape = MaterialTheme.shapes.medium,
+                    colors = fieldColors(),
                 )
                 LazyColumn(Modifier.heightIn(max = 520.dp)) {
                     items(choices.filter { query.isBlank() || it.contains(query, ignoreCase = true) }) { c ->

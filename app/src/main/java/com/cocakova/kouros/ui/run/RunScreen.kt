@@ -1,5 +1,10 @@
 package com.cocakova.kouros.ui.run
 
+import com.cocakova.kouros.core.assist.AssistRequest
+import com.cocakova.kouros.core.form.isMultilineText
+import com.cocakova.kouros.data.Settings
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -107,6 +112,9 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
 
     // The field waiting for a picked file.
     var picking by remember { mutableStateOf<FormField?>(null) }
+    // The prompt field the assistant is rewriting.
+    val assist by Settings.assist.collectAsState()
+    var enhancing by remember { mutableStateOf<FormField?>(null) }
     val pickVisual = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val f = picking; picking = null
         if (uri != null && f != null) model.upload(f, uri)
@@ -177,6 +185,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                             onPickMedia = { picking = f; launchPicker(f, pickVisual, pickAny) },
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             control = st.controls[f.key], onControl = { model.setControl(f, it) },
+                            onEnhance = if (assist.enabled && f.spec.isMultilineText()) ({ enhancing = f }) else null,
                         )
                     }
                     if (st.form.advanced.isNotEmpty()) {
@@ -202,15 +211,39 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                                         onPickMedia = { picking = f; launchPicker(f, pickVisual, pickAny) },
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                         control = st.controls[f.key], onControl = { model.setControl(f, it) },
+                                        onEnhance = if (assist.enabled && f.spec.isMultilineText()) ({ enhancing = f }) else null,
                                     )
                                 }
                             }
                         }
                     }
                 }
+                enhancing?.let { f ->
+                    EnhanceSheet(
+                        request = assistRequest(st, f),
+                        onResult = { text -> model.set(f, JsonPrimitive(text)); enhancing = null },
+                        onDismiss = { enhancing = null },
+                    )
+                }
             }
         }
     }
+}
+
+/** Everything the assistant is told: this prompt, its counterpart, what the workflow makes and loads. */
+private fun assistRequest(st: RunScreenState.Ready, f: FormField): AssistRequest {
+    fun text(field: FormField?) = field?.let { (st.values[it.key] as? JsonPrimitive)?.contentOrNull }
+    val negative = f.role == FieldRole.NEGATIVE_PROMPT
+    val counterpart = st.form.all.firstOrNull { it.role == if (negative) FieldRole.PROMPT else FieldRole.NEGATIVE_PROMPT }
+    return AssistRequest(
+        current = text(f) ?: "",
+        instruction = "",
+        negative = negative,
+        workflowName = st.workflow.name,
+        outputKind = st.traits?.primary?.noun,
+        models = st.traits?.models.orEmpty().take(8),
+        counterpart = text(counterpart),
+    )
 }
 
 private fun launchPicker(

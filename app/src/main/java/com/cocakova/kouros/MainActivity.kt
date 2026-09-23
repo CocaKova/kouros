@@ -1,5 +1,8 @@
 package com.cocakova.kouros
 
+import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.LaunchedEffect
+import com.cocakova.kouros.ui.theme.isKourosDark
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -22,7 +25,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handle(intent)
         if (Build.VERSION.SDK_INT >= 33 && !app.notifier.canPost()) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-        setContent { KourosTheme { KourosRoot() } }
+        setContent {
+            val dark = isKourosDark()
+            // Bar icons follow the app's theme, not the system's, when the two differ.
+            LaunchedEffect(dark) {
+                val style = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
+            KourosTheme(dark) { KourosRoot() }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

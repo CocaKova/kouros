@@ -32,4 +32,20 @@ object Http {
             expectSuccess = false
         }
     }
+
+    /**
+     * For answers that take a while to start and stream for a while: an agent may think and call
+     * tools for a minute or more before the first word. Same connection pool, patient timeouts.
+     */
+    val patient: HttpClient by lazy {
+        HttpClient(OkHttp) {
+            engine { preconfigured = okhttp.newBuilder().readTimeout(5, TimeUnit.MINUTES).build() }
+            install(HttpTimeout) {
+                connectTimeoutMillis = 10_000
+                requestTimeoutMillis = 600_000
+                socketTimeoutMillis = 300_000
+            }
+            expectSuccess = false
+        }
+    }
 }
