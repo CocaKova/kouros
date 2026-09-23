@@ -78,7 +78,7 @@ fun ConsoleScreen(serverId: String, onBack: () -> Unit) {
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 )
                 PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
-                    listOf("System", "Logs", "Models").forEachIndexed { i, t -> Tab(tab == i, { tab = i }, text = { Text(t) }) }
+                    listOf("System", "Logs", "Models").forEachIndexed { i, t -> Tab(tab == i, { tab = i }, text = { Text(t) }, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         },
@@ -134,7 +134,7 @@ private fun SystemTab(s: ServerSession) {
                 Slab(Modifier.fillMaxWidth()) {
                     Text("Started with", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { args.forEach { Tag(it) } }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { argGroups(args).forEach { Tag(it) } }
                 }
             }
         }
@@ -277,5 +277,12 @@ private fun ModelsTab(s: ServerSession) {
                 }
             }
         }
+    }
+}
+
+/** `--port 8188` reads as one setting: a flag keeps the values that follow it until the next flag. */
+internal fun argGroups(args: List<String>): List<String> = buildList {
+    for (a in args) {
+        if (a.startsWith("-") || isEmpty() || !last().startsWith("-")) add(a) else add(removeAt(lastIndex) + " " + a)
     }
 }
