@@ -24,7 +24,17 @@ import kotlinx.serialization.json.put
  * Only nodes that consume images into something else (conditioning, latents) count; image
  * utilities that output IMAGE (batching, stitching) are not reference lists.
  */
-class References(val slots: List<Slot>) {
+class References(
+    val slots: List<Slot>,
+    /**
+     * Optional VAE inputs left empty on nodes that take references (node id → input name), and
+     * the VAE the workflow already loads. Such nodes only splice references into the image as
+     * latents when given a VAE; without one the model sees them only through the text encoder,
+     * as a description, and redraws them loosely.
+     */
+    val vaeInputs: Map<String, String> = emptyMap(),
+    val vaeSource: JsonArray? = null,
+) {
     /**
      * One free slot: [input] is the prompt key ("images.image_2"), [label] its name for people,
      * [token] how the prompt refers to it ("<image2>" where the model has a convention).
@@ -64,6 +74,8 @@ class References(val slots: List<Slot>) {
             val node = out[nodeId] as? JsonObject ?: continue
             val inputs = (node["inputs"] as? JsonObject)?.toMutableMap() ?: continue
             free.zip(loaders).forEach { (slot, loader) -> inputs[slot.input] = buildJsonArray { add(JsonPrimitive(loader)); add(JsonPrimitive(0)) } }
+            val vae = vaeInputs[nodeId]
+            if (vae != null && vaeSource != null && vae !in inputs) inputs[vae] = vaeSource
             out[nodeId] = JsonObject(node + ("inputs" to JsonObject(inputs)))
         }
         return JsonObject(out)
@@ -105,7 +117,31 @@ class References(val slots: List<Slot>) {
                     }
                 }
             }
-            return References(slots)
+            // The VAE: whatever an existing VAE input is fed from (the decoder's), else a node that outputs one.
+            val refNodes = slots.map { it.nodeId }.toSet()
+            val vaeInputs = refNodes.mapNotNull { id ->
+                val node = prompt[id] as? JsonObject ?: return@mapNotNull null
+                val def = objectInfo[(node["class_type"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null] ?: return@mapNotNull null
+                val used = (node["inputs"] as? JsonObject)?.keys ?: emptySet()
+                def.inputs.firstOrNull { it.type == "VAE" && it.optional && it.name !in used }?.let { id to it.name }
+            }.toMap()
+            val vaeSource = if (vaeInputs.isEmpty()) null else vaeSourceIn(prompt, objectInfo)
+            return References(slots, vaeInputs, vaeSource)
+        }
+
+        private fun vaeSourceIn(prompt: JsonObject, objectInfo: ObjectInfo): JsonArray? {
+            for ((_, v) in prompt) {
+                val node = v as? JsonObject ?: continue
+                val def = objectInfo[(node["class_type"] as? JsonPrimitive)?.contentOrNull ?: continue] ?: continue
+                val inputs = node["inputs"] as? JsonObject ?: continue
+                def.inputs.filter { it.type == "VAE" }.forEach { i -> (inputs[i.name] as? JsonArray)?.takeIf { it.size == 2 }?.let { return it } }
+            }
+            for ((id, v) in prompt) {
+                val def = objectInfo[((v as? JsonObject)?.get("class_type") as? JsonPrimitive)?.contentOrNull ?: continue] ?: continue
+                val idx = def.outputs.indexOfFirst { it.type == "VAE" }
+                if (idx >= 0) return buildJsonArray { add(JsonPrimitive(id)); add(JsonPrimitive(idx)) }
+            }
+            return null
         }
 
         /** Slot names of a growable input whose template is a single IMAGE, else null. */
