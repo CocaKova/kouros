@@ -31,8 +31,8 @@ android {
         applicationId = "com.cocakova.kouros"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.0"
+        versionCode = 10
+        versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

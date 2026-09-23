@@ -35,6 +35,22 @@ class OutputsTest {
         assertEquals(true, items.single().isTemp)
     }
 
+    @Test fun mediaComesBeforeNotes() {
+        // YuE2: two PreviewAny nodes file their text before the SaveAudio node's track.
+        val items = Outputs.classify("14", o("""{"text":["X:1\nT:plan"]}""")) +
+            Outputs.classify("23", o("""{"text":["another dump"]}""")) +
+            Outputs.classify("10", o("""{"audio":[{"filename":"YuE2_00001.flac","subfolder":"audio","type":"output"}]}"""))
+        val ordered = Outputs.forViewing(items)
+        assertEquals(listOf(MediaKind.AUDIO, MediaKind.TEXT, MediaKind.TEXT), ordered.map { it.kind })
+        assertEquals(listOf("10", "14", "23"), ordered.map { it.nodeId })
+    }
+
+    @Test fun forViewingDropsLeftoverPreviews() {
+        val items = Outputs.classify("1", o("""{"images":[{"filename":"x.png","subfolder":"","type":"temp"}]}""")) +
+            Outputs.classify("2", o("""{"images":[{"filename":"y.png","subfolder":"","type":"output"}]}"""))
+        assertEquals(listOf("2"), Outputs.forViewing(items).map { it.nodeId })
+    }
+
     @Test fun readsTheOutputFolderListing() {
         val a = Outputs.fromListing("portraits/Qwen_00025.png [output]")!!
         assertEquals(FileRef("Qwen_00025.png", "portraits", "output"), a.file)

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.1 — 2026-09-23
+
+- **Tracks are presented as tracks.** A music result used to be a black rectangle with a filename:
+  the player's controls faded out after a few seconds. There is now a proper player — cover
+  plinth with a moving level meter, title, scrubber, elapsed and total time, a transport that
+  stays on screen, ten-second skips and a repeat toggle.
+- **The result comes first.** Workflows that hand back working notes beside the result (YuE2's ABC
+  plan, any PreviewAny dump) filed them in node order, so opening a song landed on a wall of text.
+  Media now leads and text follows, in the gallery and in the viewer alike.
+- **Text outputs are readable.** Monospace so structure survives, labelled with the node that made
+  them, selectable, and Copy replaces Save and Share (there is no file to save).
+- **The run screen shows a finished track** instead of an empty plinth.
+
 ## 1.0.0 — 2026-09-23
 
 First stable release, signed with the release key. **Coming from a pre-release:** uninstall it

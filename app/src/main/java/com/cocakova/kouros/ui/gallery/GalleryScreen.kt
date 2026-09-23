@@ -110,6 +110,7 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
             val runs = client.history(150).flatMap { h ->
                 h.outputs.flatMap { (id, o) -> com.cocakova.kouros.core.api.Outputs.classify(id, o) }
                     .filter { !it.isTemp }
+                    .let(com.cocakova.kouros.core.api.Outputs::forViewing)
                     .mapIndexed { i, item -> Tile(s.id, h.promptId, i, item, h.promptId.take(8)) }
             }
             // The whole output folder, newest first — history forgets everything when the server
@@ -120,7 +121,8 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
     }
     val phoneTiles = remember(runs) {
         runs.filter { it.state == RunState.SUCCEEDED }.flatMap { r ->
-            RunCoordinator.decodeOutputs(r.outputsJson).filter { !it.isTemp || it.kind != MediaKind.IMAGE }
+            // Same order the viewer pages through, or a tile would open the wrong page.
+            com.cocakova.kouros.core.api.Outputs.forViewing(RunCoordinator.decodeOutputs(r.outputsJson))
                 .mapIndexed { i, item -> Tile(r.serverId, r.promptId, i, item, r.workflowName) }
         }
     }
