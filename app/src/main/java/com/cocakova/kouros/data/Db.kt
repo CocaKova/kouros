@@ -13,6 +13,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** How a request to this server authenticates. The secret itself is never stored here. */
@@ -51,8 +53,16 @@ data class WorkflowEntity(
     val pinned: Boolean = false,
     /** Field pins/labels/order the user chose (JSON). */
     val formConfig: String? = null,
-    /** Values from the last run (JSON: field key → value), restored when the form opens. */
+    /** The form's values (JSON: field key → value) — the last run's, or edits since — restored when it opens. */
     val lastValues: String? = null,
+    /** What it makes, as an OutputKind name ("IMAGE", "VIDEO"…), read off the compiled prompt. */
+    val kind: String? = null,
+    /** Media it takes, comma-separated ("image,audio"). */
+    val inputs: String? = null,
+    /** Model files it loads, one per line — context for the prompt assistant. */
+    val models: String? = null,
+    /** The [modified] stamp the traits were read from; stale when the desktop saves a new version. */
+    val traitsFor: Double? = null,
 )
 
 enum class RunState { SUBMITTING, QUEUED, RUNNING, SUCCEEDED, FAILED, INTERRUPTED, LOST, REJECTED }
@@ -102,6 +112,10 @@ interface WorkflowDao {
     @Query("UPDATE workflows SET lastValues = :values WHERE `key` = :key") suspend fun saveValues(key: String, values: String)
     @Query("UPDATE workflows SET formConfig = :config WHERE `key` = :key") suspend fun saveConfig(key: String, config: String)
     @Query("DELETE FROM workflows WHERE `key` = :key") suspend fun delete(key: String)
+    @Query("UPDATE workflows SET kind = :kind, inputs = :inputs, models = :models, traitsFor = :traitsFor WHERE `key` = :key")
+    suspend fun saveTraits(key: String, kind: String, inputs: String, models: String, traitsFor: Double)
+    @Query("SELECT * FROM workflows WHERE serverId = :serverId AND (kind IS NULL OR traitsFor IS NULL OR traitsFor != COALESCE(modified, 0))")
+    suspend fun needingTraits(serverId: String): List<WorkflowEntity>
 }
 
 @Dao
@@ -114,6 +128,9 @@ interface RunDao {
     @Query("SELECT * FROM runs WHERE promptId = :id") suspend fun get(id: String): RunEntity?
     @Query("SELECT * FROM runs WHERE promptId = :id") fun observe(id: String): Flow<RunEntity?>
     @Query("SELECT * FROM runs WHERE workflowKey = :key ORDER BY createdAt DESC LIMIT 1") suspend fun lastFor(key: String): RunEntity?
+    /** The newest unfinished run of a workflow — what its screen follows when it is reopened. */
+    @Query("SELECT * FROM runs WHERE workflowKey = :key AND state IN ('SUBMITTING','QUEUED','RUNNING') ORDER BY createdAt DESC LIMIT 1")
+    fun activeFor(key: String): Flow<RunEntity?>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(r: RunEntity): Long
     @Update suspend fun update(r: RunEntity)
     @Query("UPDATE runs SET favorite = :fav WHERE promptId = :id") suspend fun favorite(id: String, fav: Boolean)
@@ -121,7 +138,7 @@ interface RunDao {
     @Query("DELETE FROM runs WHERE promptId = :id") suspend fun delete(id: String)
 }
 
-@Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 1, exportSchema = true)
+@Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 2, exportSchema = true)
 abstract class KourosDb : RoomDatabase() {
     abstract fun servers(): ServerDao
     abstract fun workflows(): WorkflowDao
@@ -129,6 +146,13 @@ abstract class KourosDb : RoomDatabase() {
 
     companion object {
         fun open(context: Context): KourosDb =
-            Room.databaseBuilder(context, KourosDb::class.java, "kouros.db").build()
+            Room.databaseBuilder(context, KourosDb::class.java, "kouros.db").addMigrations(V1_V2).build()
+
+        /** 0.2: workflow traits (kind, inputs, models) for filtering and the prompt assistant. */
+        private val V1_V2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                listOf("kind TEXT", "inputs TEXT", "models TEXT", "traitsFor REAL").forEach { db.execSQL("ALTER TABLE workflows ADD COLUMN $it") }
+            }
+        }
     }
 }

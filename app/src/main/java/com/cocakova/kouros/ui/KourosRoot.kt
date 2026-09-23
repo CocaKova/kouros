@@ -1,6 +1,8 @@
 package com.cocakova.kouros.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -55,6 +57,8 @@ import com.cocakova.kouros.ui.workflows.WorkflowsScreen
 import android.net.Uri
 
 private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+
+private val tabRoutes = setOf("workflows", "gallery", "queue", "servers")
 
 private val tabs = listOf(
     Tab("workflows", "Workflows", Icons.Outlined.ViewAgenda),
@@ -126,7 +130,20 @@ fun KourosRoot() {
             }
         },
     ) { pad ->
-        NavHost(nav, startDestination = "workflows") {
+        NavHost(
+            nav, startDestination = "workflows",
+            // Tabs cross-fade; screens pushed on top rise a little as they arrive.
+            enterTransition = {
+                if (targetState.destination.route in tabRoutes) fadeIn(tween(220))
+                else fadeIn(tween(240)) + slideInVertically(tween(300, easing = FastOutSlowInEasing)) { it / 24 }
+            },
+            exitTransition = { fadeOut(tween(160)) },
+            popEnterTransition = { fadeIn(tween(220)) },
+            popExitTransition = {
+                if (initialState.destination.route in tabRoutes) fadeOut(tween(160))
+                else fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 24 }
+            },
+        ) {
             composable("workflows") {
                 WorkflowsScreen(
                     pad,
@@ -142,7 +159,8 @@ fun KourosRoot() {
             }
             composable("gallery") { GalleryScreen(pad) { s, p, i -> nav.navigate("result/$s/$p/$i") } }
             composable("queue") { QueueScreen(pad) }
-            composable("servers") { ServersScreen(pad) }
+            composable("servers") { ServersScreen(pad, onSettings = { nav.navigate("settings") }) }
+            composable("settings") { com.cocakova.kouros.ui.settings.SettingsScreen(onBack = { nav.popBackStack() }) }
             composable(
                 "run/{key}?remix={remix}",
                 arguments = listOf(navArgument("key") { type = NavType.StringType }, navArgument("remix") { type = NavType.StringType; nullable = true }),

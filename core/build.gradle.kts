@@ -14,7 +14,7 @@ plugins {
 
 tasks.withType<Test>().configureEach {
     // Live end-to-end test: KOUROS_LIVE_SERVER=http://host:8188 KOUROS_LIVE_WORKFLOW=path/to/workflow.json
-    listOf("KOUROS_LIVE_SERVER", "KOUROS_LIVE_WORKFLOW", "KOUROS_LIVE_PROMPT", "KOUROS_SOCKET_PROBE").forEach { k -> System.getenv(k)?.let { environment(k, it) } }
+    listOf("KOUROS_LIVE_SERVER", "KOUROS_LIVE_WORKFLOW", "KOUROS_LIVE_PROMPT", "KOUROS_SOCKET_PROBE", "KOUROS_LIVE_ASSIST", "KOUROS_LIVE_ASSIST_KEY", "KOUROS_LIVE_ASSIST_ASK").forEach { k -> System.getenv(k)?.let { environment(k, it) } }
 }
 
 kotlin {

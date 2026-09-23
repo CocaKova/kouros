@@ -1,5 +1,6 @@
 package com.cocakova.kouros.ui.servers
 
+import com.cocakova.kouros.ui.theme.fieldColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -110,6 +111,7 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                         null -> Text("Include the port if it isn't 80/443 — ComfyUI's default is 8188")
                     }
                 },
+                colors = fieldColors(),
             )
             if (verdict == AddressPolicy.Verdict.NEEDS_OPT_IN) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -117,7 +119,7 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                     Text("I understand — use it anyway", style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
 
             Text("Authentication", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -133,6 +135,7 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                 AuthKind.BASIC, AuthKind.HEADER -> OutlinedTextField(
                     user, { user = it }, label = { Text(if (auth == AuthKind.BASIC) "User name" else "Header name") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    colors = fieldColors(),
                 )
                 else -> Unit
             }
@@ -141,6 +144,7 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                     secret, { secret = it }, label = { Text(if (auth == AuthKind.BASIC) "Password" else "Token") },
                     singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
                     supportingText = { Text("Stored encrypted on this phone, never backed up") },
+                    colors = fieldColors(),
                 )
             }
 
@@ -151,13 +155,14 @@ fun ServerEditor(existing: ServerEntity?, onDismiss: () -> Unit) {
                         "Kouros can call it for you. Start and Stop are sent as POST, Status as GET.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(startUrl, { startUrl = it }, label = { Text("Start URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(stopUrl, { stopUrl = it }, label = { Text("Stop URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(statusUrl, { statusUrl = it }, label = { Text("Status URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(powerHeader, { powerHeader = it }, label = { Text("Secret header name") }, placeholder = { Text("Authorization") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(startUrl, { startUrl = it }, label = { Text("Start URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
+                OutlinedTextField(stopUrl, { stopUrl = it }, label = { Text("Stop URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
+                OutlinedTextField(statusUrl, { statusUrl = it }, label = { Text("Status URL") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
+                OutlinedTextField(powerHeader, { powerHeader = it }, label = { Text("Secret header name") }, placeholder = { Text("Authorization") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
                 OutlinedTextField(
                     powerSecret, { powerSecret = it }, label = { Text("Secret value") }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
+                    colors = fieldColors(),
                 )
             }
 

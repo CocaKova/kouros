@@ -19,7 +19,13 @@ import com.cocakova.kouros.core.run.RunProgress
 import com.cocakova.kouros.data.WorkflowEntity
 import com.cocakova.kouros.net.ServerSession
 import com.cocakova.kouros.run.RunCoordinator
+import com.cocakova.kouros.core.form.WorkflowTraits
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,6 +49,8 @@ sealed interface RunScreenState {
         val objectInfo: ObjectInfo,
         /** Seed control per field key, starting from the workflow's own and changed by the user. */
         val controls: Map<String, String> = emptyMap(),
+        /** What it makes and loads — context for the prompt assistant. */
+        val traits: WorkflowTraits? = null,
     ) : RunScreenState
 }
 
@@ -51,9 +59,16 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
     private val _state = MutableStateFlow<RunScreenState>(RunScreenState.Loading)
     val state: StateFlow<RunScreenState> = _state.asStateFlow()
 
-    /** The most recent run started from this screen (live progress is looked up by it). */
+    /** The most recent run started from this screen. */
     private val _lastRun = MutableStateFlow<String?>(null)
-    val lastRun: StateFlow<String?> = _lastRun.asStateFlow()
+
+    /**
+     * The run this screen follows: the workflow's newest unfinished run from the database — so
+     * leaving and coming back mid-run (or opening from the notification) picks it up again —
+     * else the last one started here.
+     */
+    val lastRun: StateFlow<String?> = combine(_lastRun, app.db.runs().activeFor(workflowKey)) { local, active -> active?.promptId ?: local }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -83,6 +98,19 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         if (refresh && w.source == "userdata") app.db.workflows().upsert(w.copy(json = null))
         val text = app.workflows.content(s, w.key) ?: return RunScreenState.Failed("Couldn't read the workflow")
         val oi = s.objectInfo(refresh)
+        val stamp = "${w.modified}|${s.objectInfoHash}|${text.hashCode()}"
+        val template = app.workflows.cachedTemplate(w.key, stamp).takeUnless { refresh }
+            ?: compileTemplate(s, text, oi).also { app.workflows.cacheTemplate(w.key, stamp, it) }
+        val form = withContext(Dispatchers.Default) { FormEngine(oi).build(template.compiled, template.workflow) }
+        val traits = WorkflowTraits.of(template.prompt, oi)
+        app.workflows.saveTraits(w, traits)
+        val restored = restoreValues(w, form)
+        val values = form.all.associate { it.key to (restored[it.key] ?: it.initial) }
+        val controls = form.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
+        return RunScreenState.Ready(w, template, form, values, validate(template, form, values, oi), oi, controls, traits)
+    }
+
+    private suspend fun compileTemplate(s: ServerSession, text: String, oi: ObjectInfo): RunTemplate {
         val file = withContext(Dispatchers.Default) { json.parseToJsonElement(text) as JsonObject }
         var template = withContext(Dispatchers.Default) { Templates.resolveLocal(file, oi) }
 
@@ -97,11 +125,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
                 h?.prompt?.let { p -> template = RunTemplate(Templates.withPrompt(template.compiled, p), TemplateSource.HISTORY, template.workflow) }
             }
         }
-        val form = FormEngine(oi).build(template.compiled, template.workflow)
-        val restored = restoreValues(w, form)
-        val values = form.all.associate { it.key to (restored[it.key] ?: it.initial) }
-        val controls = form.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
-        return RunScreenState.Ready(w, template, form, values, validate(template, form, values, oi), oi, controls)
+        return template
     }
 
     private suspend fun restoreValues(w: WorkflowEntity, form: Form): Map<String, JsonElement> {
@@ -121,10 +145,35 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         if (st !is RunScreenState.Ready) st else st.copy(controls = st.controls + (field.key to mode))
     }
 
-    fun set(field: FormField, value: JsonElement) = _state.update { st ->
-        if (st !is RunScreenState.Ready) st else {
-            val v = st.values + (field.key to value)
-            st.copy(values = v, issues = validate(st.template, st.form, v, st.objectInfo))
+    fun set(field: FormField, value: JsonElement) {
+        _state.update { st ->
+            if (st !is RunScreenState.Ready) st else {
+                val v = st.values + (field.key to value)
+                st.copy(values = v, issues = validate(st.template, st.form, v, st.objectInfo))
+            }
+        }
+        saveDraft()
+    }
+
+    // Edits survive leaving the screen: the form's values are written back (debounced) as the
+    // workflow's remembered values, the same slot a run writes.
+    private var draftJob: Job? = null
+    @Volatile private var draftPending = false
+    private fun saveDraft() {
+        draftPending = true
+        draftJob?.cancel()
+        draftJob = viewModelScope.launch {
+            delay(400)
+            val st = _state.value as? RunScreenState.Ready ?: return@launch
+            draftPending = false
+            app.db.workflows().saveValues(st.workflow.key, JsonObject(st.values).toString())
+        }
+    }
+
+    override fun onCleared() {
+        // Flush a pending draft (the screen's scope is already cancelled; the app's outlives it).
+        if (draftPending) (_state.value as? RunScreenState.Ready)?.let { st ->
+            app.appScope.launch { app.db.workflows().saveValues(st.workflow.key, JsonObject(st.values).toString()) }
         }
     }
 
@@ -193,6 +242,8 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
             }
         }
         (_state.value as? RunScreenState.Ready)?.let { cur -> _state.value = cur.copy(values = values) }
+        // Remember the advanced seeds too, so reopening continues rather than repeats.
+        app.db.workflows().saveValues(st.workflow.key, JsonObject(values).toString())
         _busy.value = false
     }
 
@@ -212,9 +263,9 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         return "\n$cls" + (msg?.let { " — $it" } ?: "")
     }
 
-    fun cancel() = viewModelScope.launch { _lastRun.value?.let { app.runs.cancel(it) } }
+    fun cancel() = viewModelScope.launch { lastRun.value?.let { app.runs.cancel(it) } }
 
     fun consumeMessage() { _message.value = null }
 
-    fun progressOf(map: Map<String, RunProgress>): RunProgress? = _lastRun.value?.let { map[it] }
+    fun progressOf(map: Map<String, RunProgress>): RunProgress? = lastRun.value?.let { map[it] }
 }

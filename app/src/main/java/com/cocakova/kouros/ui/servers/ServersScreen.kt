@@ -1,5 +1,6 @@
 package com.cocakova.kouros.ui.servers
 
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,7 +47,7 @@ import com.cocakova.kouros.ui.components.StatusDot
 import com.cocakova.kouros.ui.theme.Atelier
 
 @Composable
-fun ServersScreen(pad: PaddingValues) {
+fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}) {
     val servers by CurrentServer.servers.collectAsState()
     val current by CurrentServer.server.collectAsState()
     var editing by remember { mutableStateOf<ServerEntity?>(null) }
@@ -54,6 +55,7 @@ fun ServersScreen(pad: PaddingValues) {
 
     Box(Modifier.fillMaxSize().padding(pad)) {
         if (servers.isEmpty()) {
+            IconButton(onClick = onSettings, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) { Icon(Icons.Outlined.Settings, "Settings") }
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 EmptyState(
                     "Connect your ComfyUI",
@@ -62,7 +64,11 @@ fun ServersScreen(pad: PaddingValues) {
             }
         } else {
             LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
-                item { ScreenHeader("Servers", overline = "Where your workflows run") }
+                item {
+                    ScreenHeader("Servers", overline = "Where your workflows run") {
+                        IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "Settings") }
+                    }
+                }
                 items(servers, key = { it.id }) { s ->
                     ServerRow(s, selected = s.id == current?.id, onSelect = { CurrentServer.select(s.id) }, onEdit = { editing = s })
                 }
