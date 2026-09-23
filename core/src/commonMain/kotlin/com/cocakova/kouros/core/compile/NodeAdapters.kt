@@ -25,6 +25,11 @@ class NodeAdapters(
     val virtualInert: Set<String>,
     /** Extra frontend-only widgets for specific classes, inserted after a named input's widget. */
     val extraWidgets: Map<String, List<ExtraWidget>>,
+    /**
+     * How a model's prompt refers to its reference images, per node class: `{n}` is the slot's
+     * number ("<image{n}>" → "<image2>" for slot image_2). Without a rule, the slot's name.
+     */
+    val referenceTokens: Map<String, String> = emptyMap(),
 ) {
     /**
      * @param slot the widget holds a position in `widgets_values`
@@ -49,6 +54,7 @@ class NodeAdapters(
         virtualPassthrough = virtualPassthrough + other.virtualPassthrough,
         virtualInert = virtualInert + other.virtualInert,
         extraWidgets = extraWidgets + other.extraWidgets,
+        referenceTokens = referenceTokens + other.referenceTokens,
     )
 
     companion object {
@@ -60,7 +66,8 @@ class NodeAdapters(
          * { "widgetTypes": {"COLOR": {"sendsValue": true}},
          *   "virtualPassthrough": ["Reroute"],
          *   "virtualInert": ["Note"],
-         *   "extraWidgets": {"LoadAudio": [{"after": "audio", "name": "audioUI", "sendsValue": false}]} }
+         *   "extraWidgets": {"LoadAudio": [{"after": "audio", "name": "audioUI", "sendsValue": false}]},
+         *   "referenceTokens": {"TextEncodeQwenImage21": "<image{n}>"} }
          * ```
          */
         fun parse(text: String): NodeAdapters {
@@ -84,6 +91,7 @@ class NodeAdapters(
                         ExtraWidget(wo.str("after"), wo.str("name") ?: return@mapNotNull null, wo.bool("sendsValue") ?: false)
                     } ?: emptyList()
                 } ?: emptyMap(),
+                referenceTokens = (o["referenceTokens"] as? JsonObject)?.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { k to it } }?.toMap() ?: emptyMap(),
             )
         }
 
@@ -115,6 +123,9 @@ class NodeAdapters(
                   {"after": "choice", "name": "index", "sendsValue": true},
                   {"after": "choice", "name": "option{n}", "sendsValue": true}
                 ]
+              },
+              "referenceTokens": {
+                "TextEncodeQwenImage21": "<image{n}>"
               }
             }
             """.trimIndent(),

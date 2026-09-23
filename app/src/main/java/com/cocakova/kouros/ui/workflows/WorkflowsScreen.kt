@@ -204,6 +204,9 @@ fun WorkflowsScreen(
     }
 }
 
+/** Servers report file times in seconds or in milliseconds; anything past year ~5000 in seconds is milliseconds. */
+private fun epochMillis(t: Double): Long = if (t > 1e11) t.toLong() else (t * 1000).toLong()
+
 private fun kindLabel(k: String): String = runCatching { OutputKind.valueOf(k).label }.getOrDefault("Other")
 
 private fun kindIcon(k: String?): ImageVector = when (k) {
@@ -267,7 +270,7 @@ private fun WorkflowCard(w: WorkflowEntity, showFolder: Boolean, onClick: () -> 
                 folder,
                 takes,
                 if (w.source == "local") "on this phone" else null,
-                w.modified?.let { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date((it * 1000).toLong())) },
+                w.modified?.let { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMillis(it))) },
             ).joinToString(" · ")
             if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
