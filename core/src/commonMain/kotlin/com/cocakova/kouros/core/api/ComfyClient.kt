@@ -3,6 +3,7 @@ package com.cocakova.kouros.core.api
 import com.cocakova.kouros.core.ws.BinaryFrame
 import com.cocakova.kouros.core.ws.WsEvent
 import com.cocakova.kouros.core.ws.WsTextParser
+import com.cocakova.kouros.core.ws.dbl
 import com.cocakova.kouros.core.ws.obj
 import com.cocakova.kouros.core.ws.str
 import io.ktor.client.HttpClient
@@ -10,6 +11,7 @@ import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -168,6 +170,11 @@ class ComfyClient(private val http: HttpClient, val endpoint: ServerEndpoint) {
         postJson("/interrupt", buildJsonObject { put("prompt_id", promptId) }).okText("/interrupt")
     }
 
+    /** Interrupts whatever is running, whoever queued it (the desktop's "Cancel current"). */
+    suspend fun interruptAny() {
+        postJson("/interrupt", buildJsonObject { }).okText("/interrupt")
+    }
+
     suspend fun deleteQueued(promptIds: List<String>) {
         postJson("/queue", buildJsonObject { putJsonArray("delete") { promptIds.forEach { add(JsonPrimitive(it)) } } }).okText("/queue")
     }
@@ -180,6 +187,69 @@ class ComfyClient(private val http: HttpClient, val endpoint: ServerEndpoint) {
     suspend fun free(unloadModels: Boolean = true, freeMemory: Boolean = true) {
         postJson("/free", buildJsonObject { put("unload_models", unloadModels); put("free_memory", freeMemory) }).okText("/free")
     }
+
+    suspend fun clearQueue() {
+        postJson("/queue", buildJsonObject { put("clear", true) }).okText("/queue")
+    }
+
+    suspend fun clearHistory() {
+        postJson("/history", buildJsonObject { put("clear", true) }).okText("/history")
+    }
+
+    /** The Kouros Bridge extension, when the server has it (`/kouros/bridge`); null on a stock server. */
+    suspend fun bridge(): Bridge? = runCatching {
+        val r = http.get(endpoint.http("/kouros/bridge")) { auth() }
+        if (!r.status.isSuccess()) return null
+        val o = json.parseToJsonElement(r.bodyAsText()) as? JsonObject ?: return null
+        Bridge(
+            version = (o["version"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 0,
+            features = (o["features"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.toSet() ?: emptySet(),
+        )
+    }.getOrNull()
+
+    /** Deletes generated files through the bridge. Stock servers have no way to do this. */
+    suspend fun deleteOutputs(files: List<FileRef>): DeleteReport {
+        val body = buildJsonObject {
+            putJsonArray("files") {
+                files.forEach { f -> add(buildJsonObject { put("filename", f.filename); put("subfolder", f.subfolder); put("type", f.type) }) }
+            }
+        }
+        val o = json.parseToJsonElement(postJson("/kouros/outputs/delete", body).okText("/kouros/outputs/delete")) as JsonObject
+        fun refs(k: String) = (o[k] as? JsonArray)?.mapNotNull { e ->
+            val x = e as? JsonObject ?: return@mapNotNull null
+            FileRef(x.str("filename") ?: return@mapNotNull null, x.str("subfolder") ?: "", x.str("type") ?: "output")
+        } ?: emptyList()
+        return DeleteReport(refs("deleted"), refs("missing"), refs("refused"))
+    }
+
+    /** What memory the OS can still hand out and which models are loaded (bridge only). */
+    suspend fun memory(): BridgeMemory? = runCatching {
+        val o = getJson("/kouros/memory") as JsonObject
+        BridgeMemory(
+            total = o.dbl("total")?.toLong(),
+            available = o.dbl("available")?.toLong(),
+            models = (o["models"] as? JsonArray)?.mapNotNull { e ->
+                val m = e as? JsonObject ?: return@mapNotNull null
+                LoadedModel(m.str("name") ?: "model", m.dbl("size")?.toLong() ?: 0, m.dbl("loaded")?.toLong() ?: 0)
+            } ?: emptyList(),
+        )
+    }.getOrNull()
+
+    /** The server's recent console output (`/internal/logs/raw`), oldest first. */
+    suspend fun logs(): List<LogLine> {
+        val o = getJson("/internal/logs/raw") as? JsonObject ?: return emptyList()
+        return (o["entries"] as? JsonArray)?.mapNotNull { e ->
+            val x = e as? JsonObject ?: return@mapNotNull null
+            LogLine(x.str("t") ?: "", x.str("m") ?: "")
+        } ?: emptyList()
+    }
+
+    /** Model folder names (`/models`), and the files in one (`/models/{folder}`). */
+    suspend fun modelFolders(): List<String> =
+        (getJson("/models") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList()
+
+    suspend fun models(folder: String): List<String> =
+        (getJson("/models/${folder.encodeURLParameter()}") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList()
 
     suspend fun listUserdata(dir: String = "workflows"): List<UserdataFile> {
         val el = runCatching { getJson("/userdata?dir=${dir.encodeURLParameter()}&recurse=true&full_info=true") }
@@ -197,6 +267,16 @@ class ComfyClient(private val http: HttpClient, val endpoint: ServerEndpoint) {
     /** Userdata paths are one URL segment: `workflows/a b.json` → `workflows%2Fa%20b.json`. */
     suspend fun readUserdata(path: String): String =
         http.get(endpoint.http("/userdata/" + path.encodeURLParameter())) { auth() }.okText("/userdata")
+
+    suspend fun deleteUserdata(path: String) {
+        http.delete(endpoint.http("/userdata/" + path.encodeURLParameter())) { auth() }.okText("/userdata delete")
+    }
+
+    /** Renames or moves a userdata file; fails (409) rather than overwrite unless asked. */
+    suspend fun moveUserdata(from: String, to: String, overwrite: Boolean = false) {
+        http.post(endpoint.http("/userdata/" + from.encodeURLParameter() + "/move/" + to.encodeURLParameter() + "?overwrite=$overwrite")) { auth() }
+            .okText("/userdata move")
+    }
 
     suspend fun writeUserdata(path: String, content: String, overwrite: Boolean) {
         http.post(endpoint.http("/userdata/" + path.encodeURLParameter() + "?overwrite=$overwrite")) {

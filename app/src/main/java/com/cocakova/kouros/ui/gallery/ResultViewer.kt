@@ -1,5 +1,6 @@
 package com.cocakova.kouros.ui.gallery
 
+import androidx.compose.material.icons.outlined.Delete
 import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -81,7 +82,34 @@ fun ResultViewer(serverId: String, promptId: String, startIndex: Int, onBack: ()
     }
     var chrome by remember { mutableStateOf(true) }
     var toast by remember { mutableStateOf<String?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val canDeleteFiles by produceState<Boolean?>(null, serverId) { value = app.library.canDeleteFiles(serverId) }
     val pager = rememberPagerState(initialPage = startIndex) { items.size }
+    if (confirmDelete) {
+        val item = items.getOrNull(pager.currentPage)
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete this ${if (item?.kind == MediaKind.VIDEO) "video" else if (item?.kind == MediaKind.AUDIO) "track" else "image"}?") },
+            text = {
+                Text(
+                    if (canDeleteFiles == true) "The file is deleted from the server. This can't be undone."
+                    else "It's removed from this app and the server's history; the file stays in the server's output folder (install Kouros Bridge to delete files).",
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDelete = false
+                    val it = item ?: return@TextButton
+                    scope.launch {
+                        val out = app.library.delete(listOf(com.cocakova.kouros.data.MediaManager.Target(serverId, promptId, it)))
+                        android.widget.Toast.makeText(context, out.summary(), android.widget.Toast.LENGTH_SHORT).show()
+                        onBack()
+                    }
+                }) { Text("Delete", color = com.cocakova.kouros.ui.theme.Atelier.colors.error) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Keep") } },
+        )
+    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         val s = session
@@ -138,6 +166,7 @@ fun ResultViewer(serverId: String, promptId: String, startIndex: Int, onBack: ()
                     }
                     run?.workflowKey?.let { key -> Action(Icons.Outlined.AutoFixHigh, "Remix") { onRemix(key, promptId) } }
                 }
+                Action(Icons.Outlined.Delete, "Delete") { confirmDelete = true }
             }
             toast?.let {
                 Text(it, color = Color.White, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 110.dp).background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small).padding(horizontal = 12.dp, vertical = 6.dp))

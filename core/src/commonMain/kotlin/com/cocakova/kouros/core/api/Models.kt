@@ -112,6 +112,20 @@ data class HistoryEntry(
 
 data class DeviceStats(val name: String, val type: String, val vramTotal: Long?, val vramFree: Long?)
 
+/** The Kouros Bridge extension on a server: what it can do. */
+data class Bridge(val version: Int, val features: Set<String>) {
+    val canDelete: Boolean get() = "outputs.delete" in features
+    val hasMemory: Boolean get() = "memory" in features
+}
+
+data class DeleteReport(val deleted: List<FileRef>, val missing: List<FileRef>, val refused: List<FileRef>)
+
+data class LoadedModel(val name: String, val size: Long, val loaded: Long)
+
+data class BridgeMemory(val total: Long?, val available: Long?, val models: List<LoadedModel>)
+
+data class LogLine(val time: String, val text: String)
+
 data class SystemStats(
     val comfyuiVersion: String?,
     val pythonVersion: String?,
@@ -119,6 +133,10 @@ data class SystemStats(
     val ramTotal: Long?,
     val ramFree: Long?,
     val devices: List<DeviceStats>,
+    val pytorchVersion: String? = null,
+    /** The command line ComfyUI was started with. */
+    val argv: List<String> = emptyList(),
+    val frontendVersion: String? = null,
 ) {
     companion object {
         fun parse(o: JsonObject): SystemStats {
@@ -129,6 +147,9 @@ data class SystemStats(
                 os = sys?.str("os"),
                 ramTotal = sys?.dbl("ram_total")?.toLong(),
                 ramFree = sys?.dbl("ram_free")?.toLong(),
+                pytorchVersion = sys?.str("pytorch_version"),
+                argv = (sys?.get("argv") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList(),
+                frontendVersion = sys?.str("required_frontend_version"),
                 devices = (o["devices"] as? JsonArray)?.mapNotNull { d ->
                     val dev = d as? JsonObject ?: return@mapNotNull null
                     DeviceStats(

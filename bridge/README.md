@@ -1,0 +1,27 @@
+# Kouros Bridge
+
+An optional ComfyUI extension that gives the Kouros app two things stock ComfyUI doesn't have:
+
+- **Deleting generated files.** Stock ComfyUI can only forget history; the files stay in `output/`.
+  With the bridge, deleting in the app removes the files from disk. This works only in `output/` and `temp/`,
+  and in the `input/kouros/` folder where the app uploads. Other paths are refused.
+- **An honest memory report.** It reports how much memory the OS can still hand out, plus which models ComfyUI has loaded and how big they are.
+
+It adds routes under `/kouros/` and no nodes. Kouros detects it automatically. Without it, the app
+works the same, except that deleting only removes history.
+
+## Install
+
+Copy or symlink `kouros_bridge/` into `ComfyUI/custom_nodes/` and restart ComfyUI:
+
+```sh
+ln -s /path/to/kouros/bridge/kouros_bridge ComfyUI/custom_nodes/kouros_bridge
+```
+
+## Security
+
+ComfyUI has no authentication. Anyone who can reach its port can already run code through
+custom nodes, so the bridge adds no new exposure. Still, its delete route resolves every path and refuses anything outside its folders. Keep ComfyUI on
+localhost, a tailnet, or behind an authenticating proxy.
+
+License: MIT. Author: CocaKova.

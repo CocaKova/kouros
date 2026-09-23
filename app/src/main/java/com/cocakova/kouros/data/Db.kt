@@ -102,6 +102,7 @@ interface WorkflowDao {
     @Query("SELECT * FROM workflows WHERE serverId = :serverId ORDER BY pinned DESC, COALESCE(lastOpenedAt, 0) DESC, name COLLATE NOCASE")
     fun forServer(serverId: String): Flow<List<WorkflowEntity>>
     @Query("SELECT * FROM workflows WHERE `key` = :key") suspend fun get(key: String): WorkflowEntity?
+    @Query("SELECT * FROM workflows WHERE serverId = :serverId") suspend fun forServerOnce(serverId: String): List<WorkflowEntity>
     @Query("SELECT * FROM workflows WHERE `key` = :key") fun observe(key: String): Flow<WorkflowEntity?>
     @Upsert suspend fun upsert(w: WorkflowEntity)
     @Upsert suspend fun upsertAll(w: List<WorkflowEntity>)
@@ -136,6 +137,9 @@ interface RunDao {
     @Query("UPDATE runs SET favorite = :fav WHERE promptId = :id") suspend fun favorite(id: String, fav: Boolean)
     @Query("UPDATE runs SET seen = 1 WHERE promptId = :id") suspend fun markSeen(id: String)
     @Query("DELETE FROM runs WHERE promptId = :id") suspend fun delete(id: String)
+    /** Keeps a renamed or moved workflow's runs attached to it. */
+    @Query("UPDATE runs SET workflowKey = :to, workflowName = :name WHERE workflowKey = :from")
+    suspend fun rekey(from: String, to: String, name: String)
 }
 
 @Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 2, exportSchema = true)

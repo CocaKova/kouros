@@ -73,6 +73,52 @@ class WorkflowRepo(private val app: KourosApp) {
         return body
     }
 
+    /**
+     * Renames and/or moves a workflow. [newPath] is relative to the workflows folder
+     * ("Portraits/Studio.json"). Server workflows move on the server, so the desktop sees it;
+     * the phone's own copies just change here. Returns the new key.
+     */
+    suspend fun move(session: ServerSession?, w: WorkflowEntity, newPath: String): String {
+        val path = newPath.trim().trim('/').let { if (it.endsWith(".json", ignoreCase = true)) it else "$it.json" }
+        require(path.removeSuffix(".json").isNotBlank()) { "Give it a name" }
+        if (path == w.path) return w.key
+        val name = path.substringAfterLast('/').removeSuffix(".json")
+        val newKey = key(w.serverId, w.source, path)
+        if (w.source == SOURCE_USERDATA) {
+            val s = session ?: error("Not connected")
+            s.client.moveUserdata("workflows/${w.path}", "workflows/$path", overwrite = false)
+        }
+        dao.delete(w.key)
+        dao.upsert(w.copy(key = newKey, path = path, name = name))
+        app.db.runs().rekey(w.key, newKey, name)
+        return newKey
+    }
+
+    /** A copy next to the original ("Name copy.json", numbered if taken). Returns the new key. */
+    suspend fun duplicate(session: ServerSession?, w: WorkflowEntity): String {
+        val body = (if (session != null) content(session, w.key) else w.json) ?: error("Couldn't read the workflow")
+        val folder = w.path.substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "$it/" }
+        val base = w.path.substringAfterLast('/').removeSuffix(".json")
+        val taken = dao.forServerOnce(w.serverId).map { it.path }.toSet()
+        val path = generateSequence(1) { it + 1 }.map { n -> "$folder$base copy${if (n == 1) "" else " $n"}.json" }.first { it !in taken }
+        val newKey = key(w.serverId, w.source, path)
+        if (w.source == SOURCE_USERDATA) {
+            val s = session ?: error("Not connected")
+            s.client.writeUserdata("workflows/$path", body, overwrite = false)
+        }
+        dao.upsert(WorkflowEntity(newKey, w.serverId, w.source, path, path.substringAfterLast('/').removeSuffix(".json"), body, modified = w.modified, kind = w.kind, inputs = w.inputs, models = w.models, traitsFor = w.traitsFor, formConfig = w.formConfig))
+        return newKey
+    }
+
+    /** Deletes a workflow from the server (and so from the desktop), or the phone's own copy. */
+    suspend fun delete(session: ServerSession?, w: WorkflowEntity) {
+        if (w.source == SOURCE_USERDATA) {
+            val s = session ?: error("Not connected")
+            s.client.deleteUserdata("workflows/${w.path}")
+        }
+        dao.delete(w.key)
+    }
+
     suspend fun importLocal(serverId: String, name: String, json: String): String {
         val k = key(serverId, SOURCE_LOCAL, "${System.currentTimeMillis()}-$name")
         dao.upsert(WorkflowEntity(k, serverId, SOURCE_LOCAL, name, name.removeSuffix(".json"), json, lastOpenedAt = System.currentTimeMillis()))

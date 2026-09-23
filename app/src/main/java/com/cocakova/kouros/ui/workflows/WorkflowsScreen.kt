@@ -2,6 +2,20 @@ package com.cocakova.kouros.ui.workflows
 
 import com.cocakova.kouros.ui.theme.fieldColors
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DriveFileMove
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyRow
@@ -124,6 +138,7 @@ fun WorkflowsScreen(
     }
 
     var kindFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var acting by remember { mutableStateOf<WorkflowEntity?>(null) }
     val all = list.orEmpty()
     // The kinds present, in the engine's precedence order, with how many of each.
     val kinds = remember(all) {
@@ -189,7 +204,7 @@ fun WorkflowsScreen(
             }
             if (pinned.isNotEmpty()) {
                 item(key = "h:pinned") { SectionLabel("Pinned", pinned.size) }
-                items(pinned, key = { "p:" + it.key }) { w -> WorkflowCard(w, showFolder = true, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }) }
+                items(pinned, key = { "p:" + it.key }) { w -> WorkflowCard(w, showFolder = true, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }, onMore = { acting = w }) }
             }
             byFolder.forEach { (folder, rows) ->
                 val header = when {
@@ -198,9 +213,96 @@ fun WorkflowsScreen(
                     else -> null
                 }
                 header?.let { h -> item(key = "h:$folder") { SectionLabel(h, rows.size) } }
-                items(rows, key = { it.key }) { w -> WorkflowCard(w, showFolder = false, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }) }
+                items(rows, key = { it.key }) { w -> WorkflowCard(w, showFolder = false, onClick = { onOpen(w.key) }, onPin = { scope.launch { app.db.workflows().pin(w.key, !w.pinned) } }, onMore = { acting = w }) }
             }
         }
+    }
+    acting?.let { w ->
+        WorkflowActions(
+            w, folders = all.map { it.path.substringBeforeLast('/', "") }.filter { it.isNotEmpty() }.distinct().sorted(),
+            session = session, onOpen = { acting = null; onOpen(w.key) }, onDone = { msg -> acting = null; msg?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
+        )
+    }
+}
+
+/** What the desktop's workflow browser can do to a file: pin, rename, move, duplicate, delete. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun WorkflowActions(w: WorkflowEntity, folders: List<String>, session: com.cocakova.kouros.net.ServerSession, onOpen: () -> Unit, onDone: (String?) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var mode by remember { mutableStateOf("menu") } // menu | rename | move | delete
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val folder = w.path.substringBeforeLast('/', "")
+    val s = if (w.source == com.cocakova.kouros.data.WorkflowRepo.SOURCE_USERDATA) session else null
+    fun go(done: String, block: suspend () -> Unit) {
+        busy = true; error = null
+        scope.launch {
+            runCatching { block() }
+                .onSuccess { onDone(done) }
+                .onFailure { e -> error = (e as? com.cocakova.kouros.core.api.ComfyHttpException)?.takeIf { it.status == 409 }?.let { "A workflow with that name already exists" } ?: (e.message ?: "Couldn't do that"); busy = false }
+        }
+    }
+    ModalBottomSheet(onDismissRequest = { onDone(null) }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.padding(horizontal = Space.gutter).navigationBarsPadding().imePadding().padding(bottom = Space.l), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+            Text(w.name, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                if (w.source == "local") "Saved on this phone" else "On the server" + if (folder.isNotEmpty()) " · $folder" else "",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(Space.xs))
+            when (mode) {
+                "menu" -> {
+                    ActionRow(Icons.Outlined.PlayArrow, "Open") { onOpen() }
+                    ActionRow(if (w.pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, if (w.pinned) "Unpin" else "Pin to the top") {
+                        scope.launch { app.db.workflows().pin(w.key, !w.pinned); onDone(null) }
+                    }
+                    ActionRow(Icons.Outlined.DriveFileRenameOutline, "Rename") { mode = "rename" }
+                    ActionRow(Icons.Outlined.DriveFileMove, "Move to folder") { mode = "move" }
+                    ActionRow(Icons.Outlined.ContentCopy, "Duplicate") { go("Duplicated") { app.workflows.duplicate(s, w) } }
+                    ActionRow(Icons.Outlined.Delete, "Delete", danger = true) { mode = "delete" }
+                }
+                "rename" -> {
+                    var name by remember { mutableStateOf(w.name) }
+                    OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, colors = fieldColors())
+                    Row { Spacer(Modifier.weight(1f)); TextButton(onClick = { mode = "menu" }) { Text("Back") }
+                        TextButton(enabled = !busy && name.isNotBlank(), onClick = { go("Renamed") { app.workflows.move(s, w, (if (folder.isEmpty()) "" else "$folder/") + name.trim().replace('/', '-')) } }) { Text("Rename") } }
+                }
+                "move" -> {
+                    var newFolder by remember { mutableStateOf("") }
+                    val file = w.path.substringAfterLast('/')
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+                        (listOf("") + folders).filter { it != folder }.forEach { f ->
+                            FilterChip(false, onClick = { go("Moved") { app.workflows.move(s, w, if (f.isEmpty()) file else "$f/$file") } },
+                                label = { Text(f.ifEmpty { "Top level" }) }, leadingIcon = { Icon(Icons.Outlined.Folder, null, Modifier.size(16.dp)) })
+                        }
+                    }
+                    OutlinedTextField(newFolder, { newFolder = it }, label = { Text("New folder") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, colors = fieldColors())
+                    Row { Spacer(Modifier.weight(1f)); TextButton(onClick = { mode = "menu" }) { Text("Back") }
+                        TextButton(enabled = !busy && newFolder.isNotBlank(), onClick = { go("Moved") { app.workflows.move(s, w, newFolder.trim().trim('/') + "/" + file) } }) { Text("Move") } }
+                }
+                "delete" -> {
+                    Text(
+                        if (w.source == "local") "Delete this workflow from the phone?"
+                        else "Delete this workflow from the server? The desktop loses it too. Its past results stay.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row { Spacer(Modifier.weight(1f)); TextButton(onClick = { mode = "menu" }) { Text("Keep") }
+                        TextButton(enabled = !busy, onClick = { go("Deleted") { app.workflows.delete(s, w) } }) { Text("Delete", color = com.cocakova.kouros.ui.theme.Atelier.colors.error) } }
+                }
+            }
+            error?.let { Text(it, color = com.cocakova.kouros.ui.theme.Atelier.colors.error, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+
+@Composable
+private fun ActionRow(icon: ImageVector, label: String, danger: Boolean = false, onClick: () -> Unit) {
+    val tint = if (danger) com.cocakova.kouros.ui.theme.Atelier.colors.error else MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onClick).padding(vertical = Space.m, horizontal = Space.xs), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = tint)
+        Spacer(Modifier.width(Space.l))
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = tint)
     }
 }
 
@@ -244,11 +346,11 @@ private fun SectionLabel(text: String, count: Int) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun WorkflowCard(w: WorkflowEntity, showFolder: Boolean, onClick: () -> Unit, onPin: () -> Unit) {
+private fun WorkflowCard(w: WorkflowEntity, showFolder: Boolean, onClick: () -> Unit, onPin: () -> Unit, onMore: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     Row(
         Modifier.fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onPin() })
+            .combinedClickable(onClick = onClick, onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onMore() })
             .padding(horizontal = Space.gutter, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
