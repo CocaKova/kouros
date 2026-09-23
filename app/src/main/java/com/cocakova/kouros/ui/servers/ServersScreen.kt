@@ -1,5 +1,6 @@
 package com.cocakova.kouros.ui.servers
 
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +48,7 @@ import com.cocakova.kouros.ui.components.StatusDot
 import com.cocakova.kouros.ui.theme.Atelier
 
 @Composable
-fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}) {
+fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}, onConsole: (String) -> Unit = {}) {
     val servers by CurrentServer.servers.collectAsState()
     val current by CurrentServer.server.collectAsState()
     var editing by remember { mutableStateOf<ServerEntity?>(null) }
@@ -70,7 +71,7 @@ fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}) {
                     }
                 }
                 items(servers, key = { it.id }) { s ->
-                    ServerRow(s, selected = s.id == current?.id, onSelect = { CurrentServer.select(s.id) }, onEdit = { editing = s })
+                    ServerRow(s, selected = s.id == current?.id, onSelect = { CurrentServer.select(s.id) }, onEdit = { editing = s }, onConsole = { onConsole(s.id) })
                 }
                 item { SecurityNote(Modifier.padding(16.dp)) }
             }
@@ -88,7 +89,7 @@ fun ServersScreen(pad: PaddingValues, onSettings: () -> Unit = {}) {
 }
 
 @Composable
-private fun ServerRow(s: ServerEntity, selected: Boolean, onSelect: () -> Unit, onEdit: () -> Unit) {
+private fun ServerRow(s: ServerEntity, selected: Boolean, onSelect: () -> Unit, onEdit: () -> Unit, onConsole: () -> Unit) {
     val session = remember(s) { CurrentServer.session(s) }
     DisposableEffect(session) { session.acquire(); onDispose { session.release() } }
     val state by session.state.collectAsState()
@@ -101,6 +102,7 @@ private fun ServerRow(s: ServerEntity, selected: Boolean, onSelect: () -> Unit, 
                 Text(s.baseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             if (selected) Icon(Icons.Outlined.CheckCircle, "Selected", tint = Atelier.colors.done)
+            IconButton(onClick = onConsole) { Icon(Icons.Outlined.Terminal, "Console") }
             IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, "Edit") }
         }
         Spacer(Modifier.height(8.dp))

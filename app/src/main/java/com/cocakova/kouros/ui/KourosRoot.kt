@@ -63,7 +63,7 @@ private val tabRoutes = setOf("workflows", "gallery", "queue", "servers")
 private val tabs = listOf(
     Tab("workflows", "Workflows", Icons.Outlined.ViewAgenda),
     Tab("gallery", "Gallery", Icons.Outlined.PhotoLibrary),
-    Tab("queue", "Queue", Icons.Outlined.Queue),
+    Tab("queue", "Activity", Icons.Outlined.Queue),
     Tab("servers", "Servers", Icons.Outlined.Dns),
 )
 
@@ -158,8 +158,11 @@ fun KourosRoot() {
                 )
             }
             composable("gallery") { GalleryScreen(pad) { s, p, i -> nav.navigate("result/$s/$p/$i") } }
-            composable("queue") { QueueScreen(pad) }
-            composable("servers") { ServersScreen(pad, onSettings = { nav.navigate("settings") }) }
+            composable("queue") {
+                QueueScreen(pad, onConsole = { nav.navigate("console/$it") }, onOpenResult = { sid, pid -> nav.navigate("result/$sid/$pid/0") })
+            }
+            composable("console/{server}") { e -> com.cocakova.kouros.ui.servers.ConsoleScreen(e.arguments!!.getString("server")!!, onBack = { nav.popBackStack() }) }
+            composable("servers") { ServersScreen(pad, onSettings = { nav.navigate("settings") }, onConsole = { nav.navigate("console/$it") }) }
             composable("settings") { com.cocakova.kouros.ui.settings.SettingsScreen(onBack = { nav.popBackStack() }) }
             composable(
                 "run/{key}?remix={remix}",
