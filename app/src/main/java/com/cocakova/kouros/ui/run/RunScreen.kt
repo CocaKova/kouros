@@ -1,5 +1,11 @@
 package com.cocakova.kouros.ui.run
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.Close
 import com.cocakova.kouros.core.assist.AssistRequest
 import com.cocakova.kouros.core.form.isMultilineText
 import com.cocakova.kouros.data.Settings
@@ -123,6 +129,12 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
         val f = picking; picking = null
         if (uri != null && f != null) model.upload(f, uri)
     }
+    // Reference photos: several at once, as many as the workflow has room for.
+    val readyNow = state as? RunScreenState.Ready
+    val refRoom = readyNow?.let { it.references.capacity - it.refs.size } ?: 0
+    val pickRefs = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(maxOf(2, minOf(refRoom, 16)))) { uris ->
+        uris.take(maxOf(refRoom, 0)).forEach { model.addReference(it) }
+    }
 
     val ready = state as? RunScreenState.Ready
     Scaffold(
@@ -188,6 +200,14 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                             onEnhance = if (assist.enabled && f.spec.isMultilineText()) ({ enhancing = f }) else null,
                         )
                     }
+                    if (st.references.capacity > 0) item(key = "refs") {
+                        ReferenceStrip(
+                            st, session, uploading = uploading.count { it.startsWith("ref:") },
+                            onAdd = { pickRefs.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            onRemove = { model.removeReference(it) },
+                            modifier = Modifier.padding(vertical = 10.dp),
+                        )
+                    }
                     if (st.form.advanced.isNotEmpty()) {
                         item {
                             Row(
@@ -244,6 +264,72 @@ private fun assistRequest(st: RunScreenState.Ready, f: FormField): AssistRequest
         models = st.traits?.models.orEmpty().take(8),
         counterpart = text(counterpart),
     )
+}
+
+/**
+ * Photos the model will look at alongside the prompt, wired into the workflow's free reference
+ * slots. Each shows the name the model gives it, which is how the prompt refers to it.
+ */
+@Composable
+private fun ReferenceStrip(
+    st: RunScreenState.Ready,
+    session: com.cocakova.kouros.net.ServerSession,
+    uploading: Int,
+    onAdd: () -> Unit,
+    onRemove: (Int) -> Unit,
+    modifier: Modifier,
+) {
+    val context = LocalContext.current
+    val room = minOf(st.references.capacity, 16)
+    Column(modifier) {
+        Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("REFERENCES", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+            Text("${st.refs.size} of $room", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(6.dp))
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            itemsIndexed(st.refs, key = { i, r -> "$i:$r" }) { i, path ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(88.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainerLow)) {
+                        AsyncImage(
+                            model = Thumbs.request(context, session, inputRef(path), MediaKind.IMAGE).build(),
+                            contentDescription = st.references.labelFor(i), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                        )
+                        Surface(
+                            onClick = { onRemove(i) }, shape = CircleShape, color = MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
+                            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp),
+                        ) { Icon(Icons.Outlined.Close, "Remove", Modifier.padding(4.dp)) }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(st.references.labelFor(i) ?: "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (uploading > 0) items(uploading) {
+                Box(Modifier.size(88.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainerLow), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            }
+            if (st.refs.size + uploading < room) item {
+                Surface(
+                    onClick = onAdd, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(88.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Outlined.AddPhotoAlternate, null, tint = Accent.clay)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Add", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (st.refs.isEmpty()) "Add photos for the model to work from. Refer to them in the prompt by name — \"${st.references.labelFor(0) ?: "image 1"}\"."
+            else "Refer to them in the prompt by the names under each photo.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
 }
 
 private fun launchPicker(

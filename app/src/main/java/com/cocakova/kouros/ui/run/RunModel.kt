@@ -20,6 +20,9 @@ import com.cocakova.kouros.data.WorkflowEntity
 import com.cocakova.kouros.net.ServerSession
 import com.cocakova.kouros.run.RunCoordinator
 import com.cocakova.kouros.core.form.WorkflowTraits
+import com.cocakova.kouros.core.form.References
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -51,6 +54,9 @@ sealed interface RunScreenState {
         val controls: Map<String, String> = emptyMap(),
         /** What it makes and loads — context for the prompt assistant. */
         val traits: WorkflowTraits? = null,
+        /** Reference-image slots the workflow leaves free, and the photos added to them (server input paths). */
+        val references: References = References(emptyList()),
+        val refs: List<String> = emptyList(),
     ) : RunScreenState
 }
 
@@ -104,10 +110,15 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         val form = withContext(Dispatchers.Default) { FormEngine(oi).build(template.compiled, template.workflow) }
         val traits = WorkflowTraits.of(template.prompt, oi)
         app.workflows.saveTraits(w, traits)
-        val restored = restoreValues(w, form)
+        val saved = savedValues(w)
+        val keys = form.all.map { it.key }.toSet()
+        val restored = saved.filterKeys { it in keys }
         val values = form.all.associate { it.key to (restored[it.key] ?: it.initial) }
         val controls = form.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
-        return RunScreenState.Ready(w, template, form, values, validate(template, form, values, oi), oi, controls, traits)
+        val references = References.of(template.prompt, oi)
+        val refs = (saved[REFS] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty().take(references.capacity)
+        val base = RunScreenState.Ready(w, template, form, values, emptyList(), oi, controls, traits, references, refs)
+        return base.copy(issues = validate(base))
     }
 
     private suspend fun compileTemplate(s: ServerSession, text: String, oi: ObjectInfo): RunTemplate {
@@ -128,18 +139,25 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         return template
     }
 
-    private suspend fun restoreValues(w: WorkflowEntity, form: Form): Map<String, JsonElement> {
-        val source = remixRunId?.let { app.db.runs().get(it)?.valuesJson } ?: w.lastValues ?: return emptyMap()
-        val saved = runCatching { json.parseToJsonElement(source) as JsonObject }.getOrNull() ?: return emptyMap()
-        val keys = form.all.map { it.key }.toSet()
-        return saved.filterKeys { it in keys }
+    /** The remix's or the workflow's remembered values: field values plus [REFS]. */
+    private suspend fun savedValues(w: WorkflowEntity): JsonObject {
+        val source = remixRunId?.let { app.db.runs().get(it)?.valuesJson } ?: w.lastValues ?: return JsonObject(emptyMap())
+        return runCatching { json.parseToJsonElement(source) as JsonObject }.getOrNull() ?: JsonObject(emptyMap())
     }
 
-    private fun validate(t: RunTemplate, form: Form, values: Map<String, JsonElement>, oi: ObjectInfo): List<PromptValidator.Issue> =
-        PromptValidator.validate(currentPrompt(t, form, values), oi).filter { it.kind != PromptValidator.Kind.MISSING_INPUT }
+    private fun validate(st: RunScreenState.Ready, values: Map<String, JsonElement> = st.values): List<PromptValidator.Issue> =
+        PromptValidator.validate(currentPrompt(st, values), st.objectInfo).filter { it.kind != PromptValidator.Kind.MISSING_INPUT }
 
-    private fun currentPrompt(t: RunTemplate, form: Form, values: Map<String, JsonElement>): JsonObject =
-        FormEngine.apply(t.prompt, form.all.mapNotNull { f -> values[f.key]?.let { f to it } }.toMap())
+    /** The prompt to queue: the form's values applied, then the added reference photos wired in. */
+    private fun currentPrompt(st: RunScreenState.Ready, values: Map<String, JsonElement> = st.values): JsonObject {
+        val applied = FormEngine.apply(st.template.prompt, st.form.all.mapNotNull { f -> values[f.key]?.let { f to it } }.toMap())
+        val loader = References.loaderClass(st.objectInfo) ?: return applied
+        return st.references.inject(applied, st.refs, loader)
+    }
+
+    /** What is remembered for this workflow and stored with each run: field values plus the references. */
+    private fun snapshot(st: RunScreenState.Ready, values: Map<String, JsonElement> = st.values): String =
+        JsonObject(values + (REFS to JsonArray(st.refs.map { JsonPrimitive(it) }))).toString()
 
     fun setControl(field: FormField, mode: String) = _state.update { st ->
         if (st !is RunScreenState.Ready) st else st.copy(controls = st.controls + (field.key to mode))
@@ -149,7 +167,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         _state.update { st ->
             if (st !is RunScreenState.Ready) st else {
                 val v = st.values + (field.key to value)
-                st.copy(values = v, issues = validate(st.template, st.form, v, st.objectInfo))
+                st.copy(values = v, issues = validate(st, v))
             }
         }
         saveDraft()
@@ -166,14 +184,14 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
             delay(400)
             val st = _state.value as? RunScreenState.Ready ?: return@launch
             draftPending = false
-            app.db.workflows().saveValues(st.workflow.key, JsonObject(st.values).toString())
+            app.db.workflows().saveValues(st.workflow.key, snapshot(st))
         }
     }
 
     override fun onCleared() {
         // Flush a pending draft (the screen's scope is already cancelled; the app's outlives it).
         if (draftPending) (_state.value as? RunScreenState.Ready)?.let { st ->
-            app.appScope.launch { app.db.workflows().saveValues(st.workflow.key, JsonObject(st.values).toString()) }
+            app.appScope.launch { app.db.workflows().saveValues(st.workflow.key, snapshot(st)) }
         }
     }
 
@@ -186,16 +204,48 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         com.cocakova.kouros.ui.ShareHandoff.media = null
         val media = form.all.filter { it.role == com.cocakova.kouros.core.form.FieldRole.MEDIA }
         val matching = media.filter { (it.spec.uploadKind ?: "image") == shared.kind } .ifEmpty { media }
-        if (matching.isEmpty()) { _message.value = "This workflow has no ${shared.kind} input"; return }
+        val refRoom = if (shared.kind == "image") (_state.value as? RunScreenState.Ready)?.references?.capacity ?: 0 else 0
+        if (matching.isEmpty() && refRoom == 0) { _message.value = "This workflow has no ${shared.kind} input"; return }
         shared.uris.zip(matching).forEach { (uri, field) -> upload(field, uri) }
-        if (shared.uris.size > matching.size) _message.value = "Used ${matching.size} of ${shared.uris.size} — the workflow has ${matching.size} inputs"
+        // Photos beyond the workflow's own inputs become references, where it takes them.
+        val extra = shared.uris.drop(matching.size).take(refRoom)
+        extra.forEach { addReference(it) }
+        val used = minOf(shared.uris.size, matching.size) + extra.size
+        if (shared.uris.size > used) _message.value = "Used $used of ${shared.uris.size} — the workflow has room for $used"
     }
 
     /** Uploads a picked file to the server's input folder and points the field at it. */
     fun upload(field: FormField, uri: Uri) = viewModelScope.launch {
-        val s = session ?: return@launch
         _uploading.update { it + field.key }
-        runCatching {
+        uploadToServer(uri)?.let { set(field, JsonPrimitive(it)) }
+        _uploading.update { it - field.key }
+    }
+
+    /** Adds a photo as the next reference image. */
+    fun addReference(uri: Uri) = viewModelScope.launch {
+        val slot = "ref:${uri}"
+        _uploading.update { it + slot }
+        uploadToServer(uri)?.let { path ->
+            _state.update { st ->
+                if (st !is RunScreenState.Ready || st.refs.size >= st.references.capacity) st
+                else st.copy(refs = st.refs + path).let { it.copy(issues = validate(it)) }
+            }
+            saveDraft()
+        }
+        _uploading.update { it - slot }
+    }
+
+    fun removeReference(index: Int) {
+        _state.update { st ->
+            if (st !is RunScreenState.Ready) st else st.copy(refs = st.refs.filterIndexed { i, _ -> i != index }).let { it.copy(issues = validate(it)) }
+        }
+        saveDraft()
+    }
+
+    /** Streams a file from the phone into the server's input folder; returns its "sub/name" path. */
+    private suspend fun uploadToServer(uri: Uri): String? {
+        val s = session ?: return null
+        return runCatching {
             val cr = app.contentResolver
             val name = cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
                 if (c.moveToFirst()) c.getString(0) else null
@@ -203,9 +253,8 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
             val mime = cr.getType(uri) ?: "application/octet-stream"
             val bytes = withContext(Dispatchers.IO) { cr.openInputStream(uri)!!.use { it.readBytes() } }
             val ref = s.client.upload(bytes, name, mime, subfolder = "kouros")
-            set(field, JsonPrimitive(if (ref.subfolder.isNotEmpty()) "${ref.subfolder}/${ref.filename}" else ref.filename))
-        }.onFailure { _message.value = "Upload failed: ${it.message}" }
-        _uploading.update { it - field.key }
+            if (ref.subfolder.isNotEmpty()) "${ref.subfolder}/${ref.filename}" else ref.filename
+        }.onFailure { _message.value = "Upload failed: ${it.message}" }.getOrNull()
     }
 
     /**
@@ -218,8 +267,8 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         _busy.value = true
         var values = st.values
         repeat(count) {
-            val prompt = currentPrompt(st.template, st.form, values)
-            val valuesJson = JsonObject(values).toString()
+            val prompt = currentPrompt(st, values)
+            val valuesJson = snapshot(st, values)
             val workflowJson = st.template.workflow?.raw
             when (val r = app.runs.submit(s, prompt, st.workflow.key, st.workflow.name, valuesJson, workflowJson)) {
                 is RunCoordinator.Submitted.Ok -> {
@@ -243,7 +292,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         }
         (_state.value as? RunScreenState.Ready)?.let { cur -> _state.value = cur.copy(values = values) }
         // Remember the advanced seeds too, so reopening continues rather than repeats.
-        app.db.workflows().saveValues(st.workflow.key, JsonObject(values).toString())
+        app.db.workflows().saveValues(st.workflow.key, snapshot(st, values))
         _busy.value = false
     }
 
@@ -268,4 +317,9 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
     fun consumeMessage() { _message.value = null }
 
     fun progressOf(map: Map<String, RunProgress>): RunProgress? = lastRun.value?.let { map[it] }
+
+    companion object {
+        /** Key under which the reference photos travel with the remembered values. */
+        const val REFS = "__refs"
+    }
 }
