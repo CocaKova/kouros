@@ -12,6 +12,12 @@
 - **Apps are data, not code.** An app is a prompt, a form arrangement and a list of what it needs;
   nothing about any node pack is compiled in. The server's own `/object_info` and model folders
   decide whether an app is ready.
+- **A run that stops short says why.** A run can be ended by something that has nothing to do with
+  the phone — a memory guard, someone else's interrupt, a restart — and until now the app simply
+  showed nothing, which made the app look broken. Now it records who stopped it, the node it had
+  reached, how much memory the server had left, and the server's own last log lines, and shows
+  them on the run screen with a plain "Kouros didn't stop it". An interrupted run also notifies,
+  which it never used to.
 - **The button says what it does.** "Restore" on SUPIR, "Upscale" on the upscaler, "Run" everywhere else.
 
 ## 1.0.1 — 2026-09-23
