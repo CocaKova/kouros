@@ -265,6 +265,20 @@ class FormEngine(private val objectInfo: ObjectInfo, private val rules: FieldRul
         }
 
         /**
+         * A remembered value brought back inside what its input allows. A workflow's range can
+         * narrow between runs — the server changed, or the node turned out not to take what it
+         * advertised — and a value saved under the old range would fail at run time with nothing
+         * on screen to explain it.
+         */
+        fun inRange(value: JsonElement, spec: InputDef): JsonElement {
+            if (spec.widgetType != "INT" && spec.widgetType != "FLOAT") return value
+            val v = (value as? JsonPrimitive)?.takeIf { !it.isString }?.contentOrNull?.toDoubleOrNull() ?: return value
+            val clamped = v.coerceIn(spec.min ?: v, maxOf(spec.max ?: v, spec.min ?: v))
+            if (clamped == v) return value
+            return if (spec.widgetType == "INT") JsonPrimitive(clamped.toLong()) else JsonPrimitive(clamped)
+        }
+
+        /**
          * The frontend's seed control, applied after a queue: what the value becomes for the
          * *next* run. `fixed` leaves it; `randomize` draws within the spec's range.
          */

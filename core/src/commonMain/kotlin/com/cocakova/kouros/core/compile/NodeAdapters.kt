@@ -1,5 +1,6 @@
 package com.cocakova.kouros.core.compile
 
+import com.cocakova.kouros.core.api.InputDef
 import com.cocakova.kouros.core.ws.bool
 import com.cocakova.kouros.core.ws.str
 import kotlinx.serialization.json.Json
@@ -30,6 +31,14 @@ class NodeAdapters(
      * number ("<image{n}>" → "<image2>" for slot image_2). Without a rule, the slot's name.
      */
     val referenceTokens: Map<String, String> = emptyMap(),
+    /**
+     * Ranges a node declares but its code cannot honour, by class and input name. A node that
+     * says its seed goes to 2^64 and then hands it to a library that stops at 2^32 will fail on
+     * a value it advertised as legal, and only at run time. Narrowing the spec here keeps every
+     * reader — the form's bounds, the seed that moves on after a run, the validator — inside
+     * what the node can actually take.
+     */
+    val inputLimits: Map<String, Map<String, Limit>> = emptyMap(),
 ) {
     /**
      * @param slot the widget holds a position in `widgets_values`
@@ -44,6 +53,9 @@ class NodeAdapters(
         val default: kotlinx.serialization.json.JsonElement? = null,
     )
 
+    /** A narrower range than a node declares. */
+    data class Limit(val min: Double? = null, val max: Double? = null)
+
     /** A frontend-only widget. `{n}` in [name] makes it repeat for every remaining saved value. */
     data class ExtraWidget(val after: String?, val name: String, val sendsValue: Boolean) {
         val repeats: Boolean get() = "{n}" in name
@@ -55,7 +67,19 @@ class NodeAdapters(
         virtualInert = virtualInert + other.virtualInert,
         extraWidgets = extraWidgets + other.extraWidgets,
         referenceTokens = referenceTokens + other.referenceTokens,
+        inputLimits = inputLimits + other.inputLimits,
     )
+
+    /** [spec] with this class's narrower bounds applied, when it has any. */
+    fun limited(className: String, spec: InputDef): InputDef {
+        val limit = inputLimits[className]?.get(spec.name) ?: return spec
+        val patched = buildMap<String, kotlinx.serialization.json.JsonElement> {
+            putAll(spec.options)
+            limit.min?.let { put("min", JsonPrimitive(it)) }
+            limit.max?.let { put("max", JsonPrimitive(it)) }
+        }
+        return spec.copy(options = JsonObject(patched))
+    }
 
     companion object {
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -92,6 +116,15 @@ class NodeAdapters(
                     } ?: emptyList()
                 } ?: emptyMap(),
                 referenceTokens = (o["referenceTokens"] as? JsonObject)?.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { k to it } }?.toMap() ?: emptyMap(),
+                inputLimits = (o["inputLimits"] as? JsonObject)?.mapValues { (_, v) ->
+                    (v as? JsonObject)?.mapValues { (_, l) ->
+                        val lo = l as? JsonObject
+                        Limit(
+                            min = (lo?.get("min") as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull(),
+                            max = (lo?.get("max") as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull(),
+                        )
+                    } ?: emptyMap()
+                } ?: emptyMap(),
             )
         }
 
@@ -126,6 +159,10 @@ class NodeAdapters(
               },
               "referenceTokens": {
                 "TextEncodeQwenImage21": "<image{n}>"
+              },
+              "inputLimits": {
+                "SUPIR_Upscale": {"seed": {"max": 4294967295}},
+                "SUPIR_sample": {"seed": {"max": 4294967295}}
               }
             }
             """.trimIndent(),
