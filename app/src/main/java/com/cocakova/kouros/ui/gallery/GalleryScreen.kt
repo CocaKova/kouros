@@ -43,6 +43,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
@@ -80,6 +82,7 @@ import com.cocakova.kouros.media.Thumbs
 import com.cocakova.kouros.net.ServerSession
 import com.cocakova.kouros.run.RunCoordinator
 import com.cocakova.kouros.ui.CurrentServer
+import com.cocakova.kouros.ui.components.ChipLabel
 import com.cocakova.kouros.ui.components.EmptyState
 import com.cocakova.kouros.ui.components.ScreenHeader
 
@@ -161,15 +164,21 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
                 ScreenHeader("Gallery", overline = if (fromServer) s?.name else "Made on this phone") {}
             }
             item(span = StaggeredGridItemSpan.FullLine) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 8.dp)) {
-                    FilterChip(!fromServer, { fromServer = false }, label = { Text("This phone") })
-                    FilterChip(fromServer, { fromServer = true }, label = { Text("Everything on the server") })
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                ) {
+                    item { FilterChip(!fromServer, { fromServer = false }, label = { ChipLabel("This phone") }) }
+                    item { FilterChip(fromServer, { fromServer = true }, label = { ChipLabel("Everything on the server") }) }
                 }
             }
             if (groups.size > 1) item(span = StaggeredGridItemSpan.FullLine) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                    groups.forEach { (g, n) ->
-                        FilterChip(filter == g, { chosen = g.name }, label = { Text("${g.label} $n") })
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    items(groups, key = { it.first.name }) { (g, n) ->
+                        FilterChip(filter == g, { chosen = g.name }, label = { ChipLabel("${g.label} $n") })
                     }
                 }
             }

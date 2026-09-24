@@ -1,6 +1,8 @@
 package com.cocakova.kouros.ui.apps
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,7 +60,7 @@ private sealed interface Phase {
  * down through the bridge, the node packs through the server's manager, and a restart lets the
  * server see them. A server that can do neither is told plainly, with what to install by hand.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AppSetupSheet(session: ServerSession, status: AppStatus, onDismiss: () -> Unit, onReady: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -185,7 +187,11 @@ fun AppSetupSheet(session: ServerSession, status: AppStatus, onDismiss: () -> Un
             }
 
             Spacer(Modifier.height(Space.l))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+            FlowRow(
+                verticalArrangement = Arrangement.spacedBy(Space.s),
+                horizontalArrangement = Arrangement.spacedBy(Space.m),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
                 when (phase) {
                     Phase.Reading -> {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
