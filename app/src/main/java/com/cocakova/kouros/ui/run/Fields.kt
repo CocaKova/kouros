@@ -5,6 +5,9 @@ import com.cocakova.kouros.ui.theme.fieldColors
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -301,6 +305,7 @@ private fun ChoiceField(field: FormField, value: JsonElement, onChange: (JsonEle
 }
 
 /** An input file: shows what the server has, and replaces it with something from the phone. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MediaField(
     field: FormField,
@@ -316,13 +321,7 @@ private fun MediaField(
     val kind = Outputs.byExtension(ref.filename) ?: MediaKind.IMAGE
     val context = LocalContext.current
     Column(modifier) {
-        Label(field) {
-            onPickFromServer?.let { go ->
-                IconButton(onClick = go, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Outlined.PhotoLibrary, "Choose something you made", tint = Accent.clay, modifier = Modifier.size(18.dp))
-                }
-            }
-        }
+        Label(field)
         Spacer(Modifier.height(6.dp))
         Surface(
             onClick = onPick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer,
@@ -349,6 +348,21 @@ private fun MediaField(
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+        }
+        onPickFromServer?.let { go ->
+            Spacer(Modifier.height(6.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(onClick = onPick, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("This phone", maxLines = 1, softWrap = false)
+                }
+                OutlinedButton(onClick = go, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                    Icon(Icons.Outlined.PhotoLibrary, null, Modifier.size(18.dp), tint = Accent.clay)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Made on the server", maxLines = 1, softWrap = false)
                 }
             }
         }
