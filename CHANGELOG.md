@@ -18,6 +18,10 @@
   reached, how much memory the server had left, and the server's own last log lines, and shows
   them on the run screen with a plain "Kouros didn't stop it". An interrupted run also notifies,
   which it never used to.
+- **The gallery opens on the pictures.** A run can leave working notes beside its result, and a
+  music run leaves a track as well, so a gallery of images was getting buried in icons. It now
+  offers the groups it actually holds — Pictures, Audio, Notes, All, with counts — and opens on
+  the pictures. Nothing is hidden; a note tile shows its first line instead of a bare icon.
 - **The button says what it does.** "Restore" on SUPIR, "Upscale" on the upscaler, "Run" everywhere else.
 
 ## 1.0.1 — 2026-09-23

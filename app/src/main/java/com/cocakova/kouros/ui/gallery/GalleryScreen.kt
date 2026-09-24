@@ -35,6 +35,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -71,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.cocakova.kouros.app
+import com.cocakova.kouros.core.api.GalleryFilter
 import com.cocakova.kouros.core.api.MediaKind
 import com.cocakova.kouros.core.api.OutputItem
 import com.cocakova.kouros.data.RunState
@@ -126,7 +128,13 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
                 .mapIndexed { i, item -> Tile(r.serverId, r.promptId, i, item, r.workflowName) }
         }
     }
-    val tiles = if (fromServer) history.orEmpty() else phoneTiles
+    val all = if (fromServer) history.orEmpty() else phoneTiles
+    val groups = remember(all) { GalleryFilter.counts(all.map { it.item.kind }) }
+    // Null until the person chooses: the gallery opens on whatever it mostly holds.
+    var chosen by rememberSaveable { mutableStateOf<String?>(null) }
+    val filter = chosen?.let { name -> groups.map { it.first }.firstOrNull { it.name == name } }
+        ?: remember(all) { GalleryFilter.initial(all.map { it.item.kind }) }
+    val tiles = remember(all, filter) { all.filter { filter.accepts(it.item.kind) } }
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -135,7 +143,7 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
     val selecting = selected.isNotEmpty()
     fun key(t: Tile) = "${t.serverId}|${t.promptId}:${t.index}:${t.item.file?.filename}"
-    LaunchedEffect(fromServer) { selected = emptySet() }
+    LaunchedEffect(fromServer, filter) { selected = emptySet() }
     BackHandler(selecting) { selected = emptySet() }
     var confirm by remember { mutableStateOf(false) }
     var filesToo by remember { mutableStateOf<Boolean?>(null) }
@@ -156,6 +164,13 @@ fun GalleryScreen(pad: PaddingValues, onOpen: (serverId: String, promptId: Strin
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 8.dp)) {
                     FilterChip(!fromServer, { fromServer = false }, label = { Text("This phone") })
                     FilterChip(fromServer, { fromServer = true }, label = { Text("Everything on the server") })
+                }
+            }
+            if (groups.size > 1) item(span = StaggeredGridItemSpan.FullLine) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    groups.forEach { (g, n) ->
+                        FilterChip(filter == g, { chosen = g.name }, label = { Text("${g.label} $n") })
+                    }
                 }
             }
             if (tiles.isEmpty()) item(span = StaggeredGridItemSpan.FullLine) {
@@ -265,8 +280,16 @@ private fun TileContent(t: Tile, session: ServerSession?, context: android.conte
             Icon(Icons.Outlined.GraphicEq, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
             Text(f?.filename ?: "", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp), maxLines = 1)
         }
-        else -> Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.TextSnippet, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
+        else -> Box(Modifier.fillMaxWidth().aspectRatio(1.6f), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Outlined.TextSnippet, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    t.item.text?.lineSequence()?.firstOrNull { it.isNotBlank() }?.take(60) ?: f?.filename ?: "Note",
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
         }
     }
 }
