@@ -117,3 +117,49 @@ object Outputs {
         else -> "application/octet-stream"
     }
 }
+
+/**
+ * What the gallery is showing. A run can leave working notes beside its result — a plan, a
+ * caption, a JSON dump — and a music run leaves a track as well. All of it belongs in the
+ * gallery; none of it should bury the pictures, so the gallery offers the groups it actually
+ * holds and opens on the one people came for.
+ */
+enum class GalleryFilter {
+    PICTURES, AUDIO, NOTES, ALL;
+
+    val label: String
+        get() = when (this) {
+            PICTURES -> "Pictures"
+            AUDIO -> "Audio"
+            NOTES -> "Notes"
+            ALL -> "All"
+        }
+
+    fun accepts(kind: MediaKind): Boolean = when (this) {
+        PICTURES -> kind == MediaKind.IMAGE || kind == MediaKind.ANIMATED || kind == MediaKind.VIDEO || kind == MediaKind.MODEL3D
+        AUDIO -> kind == MediaKind.AUDIO
+        NOTES -> kind == MediaKind.TEXT || kind == MediaKind.FILE
+        ALL -> true
+    }
+
+    companion object {
+        private val groups = listOf(PICTURES, AUDIO, NOTES)
+
+        /**
+         * The chips worth offering for [kinds], with how many each holds — the groups that are
+         * there, and [ALL] last once there is more than one. A gallery of nothing but pictures
+         * offers no chips at all.
+         */
+        fun counts(kinds: List<MediaKind>): List<Pair<GalleryFilter, Int>> {
+            val present = groups.mapNotNull { g -> kinds.count { g.accepts(it) }.takeIf { it > 0 }?.let { g to it } }
+            return if (present.size < 2) emptyList() else present + (ALL to kinds.size)
+        }
+
+        /** What it opens on: the pictures, else whatever there is most of, else everything. */
+        fun initial(kinds: List<MediaKind>): GalleryFilter =
+            counts(kinds).takeIf { it.isNotEmpty() }?.let { present ->
+                present.firstOrNull { it.first == PICTURES }?.first
+                    ?: present.filter { it.first != ALL }.maxByOrNull { it.second }?.first
+            } ?: ALL
+    }
+}
