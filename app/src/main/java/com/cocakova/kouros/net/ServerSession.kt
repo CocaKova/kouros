@@ -162,7 +162,9 @@ class ServerSession(
                 .onSuccess { t -> runCatching { file.writeText(t) } }
                 .getOrElse { e -> if (file.isFile && !refresh) file.readText() else throw e }
         }
-        val parsed = withContext(Dispatchers.Default) { ObjectInfo.parse(json.parseToJsonElement(text) as JsonObject) }
+        val parsed = withContext(Dispatchers.Default) {
+            ObjectInfo.parse(json.parseToJsonElement(text) as JsonObject, com.cocakova.kouros.core.compile.NodeAdapters.DEFAULT)
+        }
         objectInfoHash = sha1(text)
         objectInfo = parsed
         parsed

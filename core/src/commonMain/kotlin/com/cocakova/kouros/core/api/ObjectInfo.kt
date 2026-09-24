@@ -19,8 +19,20 @@ class ObjectInfo(val nodes: Map<String, NodeDef>) {
     operator fun get(classType: String): NodeDef? = nodes[classType]
 
     companion object {
-        fun parse(o: JsonObject): ObjectInfo =
-            ObjectInfo(o.mapNotNull { (k, v) -> (v as? JsonObject)?.let { k to NodeDef.parse(k, it) } }.toMap())
+        /**
+         * [adapters] narrows the ranges of nodes that declare more than their code can take, so
+         * the correction is made once here and every reader — the form, the seed that moves on
+         * after a run, the validator — works from a spec the node can honour.
+         */
+        fun parse(o: JsonObject, adapters: com.cocakova.kouros.core.compile.NodeAdapters? = null): ObjectInfo =
+            ObjectInfo(
+                o.mapNotNull { (k, v) ->
+                    (v as? JsonObject)?.let { def ->
+                        val parsed = NodeDef.parse(k, def)
+                        k to (adapters?.let { a -> parsed.withInputs(parsed.inputs.map { a.limited(k, it) }) } ?: parsed)
+                    }
+                }.toMap(),
+            )
     }
 }
 
@@ -35,6 +47,8 @@ class NodeDef(
     val deprecated: Boolean,
 ) {
     fun input(name: String): InputDef? = inputs.firstOrNull { it.name == name }
+
+    fun withInputs(inputs: List<InputDef>) = NodeDef(name, displayName, category, isOutputNode, inputs, outputs, deprecated)
 
     companion object {
         fun parse(name: String, o: JsonObject): NodeDef {

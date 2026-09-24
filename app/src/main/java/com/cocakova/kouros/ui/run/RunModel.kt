@@ -130,7 +130,7 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
         val saved = savedValues(w)
         val keys = baseForm.all.map { it.key }.toSet()
         val restored = saved.filterKeys { it in keys }
-        val values = baseForm.all.associate { it.key to (restored[it.key] ?: it.initial) }
+        val values = baseForm.all.associate { f -> f.key to FormEngine.inRange(restored[f.key] ?: f.initial, f.spec) }
         val controls = baseForm.all.mapNotNull { f -> f.control?.let { f.key to it } }.toMap()
         val references = References.of(template.prompt, oi)
         val refs = (saved[REFS] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty().take(references.capacity)

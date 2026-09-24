@@ -27,6 +27,12 @@
   the server has, one tap. The file never leaves the server — ComfyUI reads it out of the output
   folder — so "upscale the thing I just made" costs no upload. Reference photos can come from
   there too.
+- **A node that asks for more than it can take.** Some nodes declare a range their own code will
+  refuse — SUPIR advertises a seed up to 2^64 and hands it to a library that stops at 2^32, so a
+  randomised seed failed the run after minutes of work. Kouros narrows such ranges where the
+  server's definitions are read, so the form, the seed that moves on after a run and the
+  validator all stay inside what the node can honour, and a value remembered from the old range
+  is brought back inside it. The rules are data: a server or a user can add more.
 - **The button says what it does.** "Restore" on SUPIR, "Upscale" on the upscaler, "Run" everywhere else.
 
 ## 1.0.1 — 2026-09-23
