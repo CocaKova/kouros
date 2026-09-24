@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -279,7 +280,7 @@ private fun ChoiceField(field: FormField, value: JsonElement, onChange: (JsonEle
         var query by remember { mutableStateOf("") }
         val choices = field.spec.choices.orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
         ModalBottomSheet(onDismissRequest = { open = false }, sheetState = sheet) {
-            Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
+            Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding().imePadding()) {
                 Text(field.label, style = MaterialTheme.typography.headlineSmall)
                 if (choices.size > 8) OutlinedTextField(
                     query, { query = it }, placeholder = { Text("Search") }, singleLine = true,

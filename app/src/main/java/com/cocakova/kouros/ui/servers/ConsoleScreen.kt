@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -70,6 +71,8 @@ fun ConsoleScreen(serverId: String, onBack: () -> Unit) {
     val session by produceState<ServerSession?>(null, serverId) { value = app.sessions.byId(serverId) }
     var tab by rememberSaveable { mutableStateOf(0) }
     Scaffold(
+        // Sit above the keyboard: the log and model filters are useless with the list behind it.
+        modifier = Modifier.imePadding(),
         topBar = {
             Column {
                 TopAppBar(

@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -165,6 +166,10 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
 
     val ready = state as? RunScreenState.Ready
     Scaffold(
+        // The window is edge to edge, so nothing moves for the keyboard unless we say so: the whole
+        // screen shrinks to sit above it, taking the run bar with it. The nav bar padding inside the
+        // run bar falls to zero on its own while the keyboard has that space.
+        modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
                 title = {
