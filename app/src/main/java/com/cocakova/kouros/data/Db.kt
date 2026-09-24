@@ -87,6 +87,8 @@ data class RunEntity(
     val outputsJson: String? = null,
     val favorite: Boolean = false,
     val seen: Boolean = false,
+    /** Why it stopped short, as the server explained it ([StopReport] JSON). */
+    val stoppedJson: String? = null,
 )
 
 @Dao
@@ -145,7 +147,7 @@ interface RunDao {
     suspend fun rekey(from: String, to: String, name: String)
 }
 
-@Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 3, exportSchema = true)
+@Database(entities = [ServerEntity::class, WorkflowEntity::class, RunEntity::class], version = 4, exportSchema = true)
 abstract class KourosDb : RoomDatabase() {
     abstract fun servers(): ServerDao
     abstract fun workflows(): WorkflowDao
@@ -153,7 +155,7 @@ abstract class KourosDb : RoomDatabase() {
 
     companion object {
         fun open(context: Context): KourosDb =
-            Room.databaseBuilder(context, KourosDb::class.java, "kouros.db").addMigrations(V1_V2, V2_V3).build()
+            Room.databaseBuilder(context, KourosDb::class.java, "kouros.db").addMigrations(V1_V2, V2_V3, V3_V4).build()
 
         /** 0.2: workflow traits (kind, inputs, models) for filtering and the prompt assistant. */
         private val V1_V2 = object : Migration(1, 2) {
@@ -166,6 +168,13 @@ abstract class KourosDb : RoomDatabase() {
         private val V2_V3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE workflows ADD COLUMN appId TEXT")
+            }
+        }
+
+        /** 1.1: a run that stopped short keeps the server's explanation. */
+        private val V3_V4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE runs ADD COLUMN stoppedJson TEXT")
             }
         }
     }

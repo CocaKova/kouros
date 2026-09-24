@@ -241,6 +241,19 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
+                    item(key = "stopped") {
+                        val runRow by remember(lastRun) {
+                            lastRun?.let { app.db.runs().observe(it) } ?: kotlinx.coroutines.flow.flowOf(null)
+                        }.collectAsState(initial = null)
+                        val report = com.cocakova.kouros.core.run.StopReport.decode(runRow?.stoppedJson)
+                        if (report != null && runRow?.state != com.cocakova.kouros.data.RunState.SUCCEEDED) {
+                            StoppedPanel(
+                                report,
+                                onRetry = { runWithNotifications(1) },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
                     if (st.missing.isNotEmpty()) item(key = "missing") {
                         MissingModels(st.missing, downloads, st.canDownload, onDownload = { model.download(it) }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     }

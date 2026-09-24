@@ -22,6 +22,7 @@ import com.cocakova.kouros.core.api.OutputItem
 import com.cocakova.kouros.core.run.RunPhase
 import com.cocakova.kouros.core.run.RunProgress
 import com.cocakova.kouros.data.RunEntity
+import com.cocakova.kouros.core.run.StopReport
 import com.cocakova.kouros.data.RunState
 import com.cocakova.kouros.media.Thumbs
 import kotlinx.coroutines.launch
@@ -164,13 +165,18 @@ class Notifier(private val app: KourosApp) {
                 b.setLargeIcon(bmp).setStyle(NotificationCompat.BigPictureStyle().bigPicture(bmp).bigLargeIcon(null as Bitmap?))
                 if (canPost()) nm.notify(id, b.build())
             }
-        } else if (run.state == RunState.FAILED || run.state == RunState.LOST) {
+        } else if (run.state in setOf(RunState.FAILED, RunState.LOST, RunState.INTERRUPTED)) {
+            val report = StopReport.decode(run.stoppedJson)
+            // A run this phone stopped needs no notification: whoever stopped it was looking.
+            if (report?.kind == StopReport.Kind.BY_YOU) return
+            val headline = report?.headline ?: run.error ?: "The run did not finish"
+            val detail = listOfNotNull(report?.detail ?: run.error, report?.serverSaid?.lastOrNull()).joinToString("\n\n")
             val b = NotificationCompat.Builder(app, CH_ERROR)
                 .setSmallIcon(R.drawable.ic_stat_kouros)
-                .setContentTitle("${run.workflowName} failed")
-                .setContentText(run.error ?: "The run did not finish")
-                .setStyle(NotificationCompat.BigTextStyle().bigText(run.error ?: "The run did not finish"))
-                .setColor(ERROR)
+                .setContentTitle("${run.workflowName} — $headline")
+                .setContentText(detail.ifBlank { headline })
+                .setStyle(NotificationCompat.BigTextStyle().bigText(detail.ifBlank { headline }))
+                .setColor(if (report?.kind == StopReport.Kind.BY_SERVER) CLAY else ERROR)
                 .setAutoCancel(true)
                 .setContentIntent(openIntent(run.promptId))
                 .addAction(0, "Try again", action(NotificationActionReceiver.RERUN, run.promptId))

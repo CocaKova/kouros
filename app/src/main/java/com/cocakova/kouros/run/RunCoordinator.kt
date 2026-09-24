@@ -10,6 +10,7 @@ import com.cocakova.kouros.core.api.SubmitResult
 import com.cocakova.kouros.core.run.RunPhase
 import com.cocakova.kouros.core.run.RunProgress
 import com.cocakova.kouros.core.run.RunTracker
+import com.cocakova.kouros.core.run.StopReport
 import com.cocakova.kouros.core.ws.BinaryFrame
 import com.cocakova.kouros.data.RunEntity
 import com.cocakova.kouros.data.RunState
@@ -51,6 +52,8 @@ class RunCoordinator(private val app: KourosApp) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val trackers = java.util.concurrent.ConcurrentHashMap<String, RunTracker>()
     private val serverOf = java.util.concurrent.ConcurrentHashMap<String, String>() // promptId → serverId
+    /** Runs this phone asked to stop, so a stop can be told from the server's own. */
+    private val cancelledHere = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val attached = HashMap<String, Job>() // serverId → event collector
     private val mutex = Mutex()
 
@@ -132,12 +135,15 @@ class RunCoordinator(private val app: KourosApp) {
         val run = app.db.runs().get(promptId) ?: return
         val session = app.sessions.byId(run.serverId) ?: return
         val phase = _progress.value[promptId]?.phase
+        cancelledHere += promptId
         runCatching {
             if (phase == RunPhase.RUNNING) session.client.interrupt(promptId)
             else session.client.deleteQueued(listOf(promptId))
         }
         if (phase != RunPhase.RUNNING) {
-            app.db.runs().update(run.copy(state = RunState.INTERRUPTED, finishedAt = now()))
+            app.db.runs().update(
+                run.copy(state = RunState.INTERRUPTED, finishedAt = now(), stoppedJson = StopReport(StopReport.Kind.BY_YOU).encode()),
+            )
             drop(promptId)
         }
     }
@@ -253,12 +259,14 @@ class RunCoordinator(private val app: KourosApp) {
             app.sessions.byId(run.serverId)?.let { s -> runCatching { s.client.historyFor(run.promptId) }.getOrNull() }
                 ?.let { h -> mutex.withLock { trackers[run.promptId] }?.fromHistory(h)?.outputs } ?: p.outputs
         } else p.outputs
+        val report = if (state == RunState.SUCCEEDED) null else stopReport(run, p, state)
         val updated = run.copy(
             state = state,
             startedAt = run.startedAt ?: p.startedAtMs,
             finishedAt = p.finishedAtMs ?: now(),
             error = p.error?.let { e -> listOfNotNull(e.nodeType, e.message).joinToString(": ") } ?: if (state == RunState.LOST) "The server no longer knows this run" else null,
             outputsJson = encodeOutputs(outputs),
+            stoppedJson = report?.encode() ?: run.stoppedJson,
         )
         app.db.runs().update(updated)
         publish(p.promptId, p.copy(outputs = outputs))
@@ -267,7 +275,37 @@ class RunCoordinator(private val app: KourosApp) {
         com.cocakova.kouros.widget.KourosWidget.refresh(app)
     }
 
+    /**
+     * Why a run ended without a result, asked of the server while the answer is still fresh: how
+     * far it had got, what memory it had left (its bridge, when it has one) and the last lines of
+     * its own log. A run stopped from this phone needs none of that — we know who stopped it.
+     */
+    private suspend fun stopReport(run: RunEntity, p: RunProgress, state: RunState): StopReport {
+        val byUs = cancelledHere.remove(run.promptId)
+        val kind = when {
+            byUs -> StopReport.Kind.BY_YOU
+            state == RunState.INTERRUPTED -> StopReport.Kind.BY_SERVER
+            state == RunState.LOST -> StopReport.Kind.LOST
+            else -> StopReport.Kind.FAILED
+        }
+        val node = p.error?.nodeId ?: p.currentNode
+        val tracker = mutex.withLock { trackers[run.promptId] }
+        val base = StopReport(
+            kind = kind,
+            nodeTitle = p.error?.let { tracker?.titleOf(it.nodeId) } ?: p.currentTitle ?: tracker?.titleOf(node),
+            nodeType = p.error?.nodeType,
+            message = p.error?.message,
+        )
+        if (kind == StopReport.Kind.BY_YOU) return base
+        val session = app.sessions.byId(run.serverId) ?: return base
+        return base.copy(
+            availableMemory = runCatching { session.client.memory()?.available }.getOrNull(),
+            serverSaid = runCatching { StopReport.lastWords(session.client.logs().map { it.text }) }.getOrDefault(emptyList()),
+        )
+    }
+
     private suspend fun drop(promptId: String) {
+        cancelledHere -= promptId
         val serverId = serverOf.remove(promptId)
         mutex.withLock { trackers.remove(promptId) }
         _progress.update { it - promptId }
