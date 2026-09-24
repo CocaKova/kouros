@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Close
 import com.cocakova.kouros.core.assist.AssistRequest
 import com.cocakova.kouros.core.form.isMultilineText
@@ -125,6 +126,9 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
 
     // The field waiting for a picked file.
     var picking by remember { mutableStateOf<FormField?>(null) }
+    // The field browsing what the server has already made, and the same for a reference photo.
+    var pickingFromServer by remember { mutableStateOf<FormField?>(null) }
+    var pickingRefFromServer by remember { mutableStateOf(false) }
     // The prompt field the assistant is rewriting.
     val assist by Settings.assist.collectAsState()
     var enhancing by remember { mutableStateOf<FormField?>(null) }
@@ -275,6 +279,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                         FieldControl(
                             f, st.values[f.key] ?: f.initial, { model.set(f, it) }, session, f.key in uploading,
                             onPickMedia = { picking = f; launchPicker(f, pickVisual, pickAny) },
+                            onPickFromServer = { pickingFromServer = f },
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             control = st.controls[f.key], onControl = { model.setControl(f, it) },
                             onEnhance = if (assist.enabled && f.spec.isMultilineText()) ({ enhancing = f }) else null,
@@ -284,6 +289,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                         ReferenceStrip(
                             st, session, uploading = uploading.count { it.startsWith("ref:") },
                             onAdd = { pickRefs.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            onAddFromServer = { pickingRefFromServer = true },
                             onRemove = { model.removeReference(it) },
                             onInsert = { model.insertIntoPrompt(it) },
                             modifier = Modifier.padding(vertical = 10.dp),
@@ -310,6 +316,7 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                                     FieldControl(
                                         f, st.values[f.key] ?: f.initial, { model.set(f, it) }, session, f.key in uploading,
                                         onPickMedia = { picking = f; launchPicker(f, pickVisual, pickAny) },
+                                        onPickFromServer = { pickingFromServer = f },
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                         control = st.controls[f.key], onControl = { model.setControl(f, it) },
                                         onEnhance = if (assist.enabled && f.spec.isMultilineText()) ({ enhancing = f }) else null,
@@ -320,6 +327,22 @@ fun RunScreen(workflowKey: String, remixRunId: String?, onBack: () -> Unit, onOp
                     }
                 }
                 if (savingPreset) PresetNameDialog(onSave = { model.savePreset(it); savingPreset = false }, onDismiss = { savingPreset = false })
+                pickingFromServer?.let { f ->
+                    ServerMediaPicker(
+                        session = session,
+                        accepts = f.spec.uploadKind,
+                        onPick = { name -> model.set(f, JsonPrimitive(name)); pickingFromServer = null },
+                        onDismiss = { pickingFromServer = null },
+                    )
+                }
+                if (pickingRefFromServer) {
+                    ServerMediaPicker(
+                        session = session,
+                        accepts = "image",
+                        onPick = { name -> model.addServerReference(name); pickingRefFromServer = false },
+                        onDismiss = { pickingRefFromServer = false },
+                    )
+                }
                 enhancing?.let { f ->
                     EnhanceSheet(
                         request = assistRequest(st, f),
@@ -361,6 +384,7 @@ private fun ReferenceStrip(
     session: com.cocakova.kouros.net.ServerSession,
     uploading: Int,
     onAdd: () -> Unit,
+    onAddFromServer: () -> Unit,
     onRemove: (Int) -> Unit,
     onInsert: (String) -> Unit,
     modifier: Modifier,
@@ -408,6 +432,18 @@ private fun ReferenceStrip(
                         Icon(Icons.Outlined.AddPhotoAlternate, null, tint = Accent.clay)
                         Spacer(Modifier.height(4.dp))
                         Text("Add", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+            if (st.refs.size + uploading < room) item {
+                Surface(
+                    onClick = onAddFromServer, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(88.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Outlined.PhotoLibrary, null, tint = Accent.clay)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Made here", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
