@@ -126,8 +126,8 @@ fun TemplatesScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                            item { FilterChip(group == null, { group = null }, label = { Text("All ${list.size}") }) }
-                            items(groups, key = { it }) { g -> FilterChip(group == g, { group = if (group == g) null else g }, label = { Text(g) }) }
+                            item { FilterChip(group == null, { group = null }, label = { com.cocakova.kouros.ui.components.ChipLabel("All ${list.size}") }) }
+                            items(groups, key = { it }) { g -> FilterChip(group == g, { group = if (group == g) null else g }, label = { com.cocakova.kouros.ui.components.ChipLabel(g) }) }
                         }
                     }
                     items(shown, key = { it.name }) { t -> TemplateCard(t, session) { chosen = t } }

@@ -327,7 +327,7 @@ private fun kindIcon(k: String?): ImageVector = when (k) {
 private fun KindChip(label: String, count: Int, kind: String?, selected: Boolean, onClick: () -> Unit) {
     FilterChip(
         selected = selected, onClick = onClick,
-        label = { Text("$label  $count") },
+        label = { com.cocakova.kouros.ui.components.ChipLabel("$label  $count") },
         leadingIcon = kind?.let { { Icon(kindIcon(it), null, Modifier.size(16.dp)) } },
         shape = MaterialTheme.shapes.small,
         colors = FilterChipDefaults.filterChipColors(

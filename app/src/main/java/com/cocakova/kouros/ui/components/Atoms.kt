@@ -186,6 +186,13 @@ fun PlinthMark(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * The text inside a chip. It never wraps: at a large font scale a wrapped label tears the chip's
+ * shape apart and pushes the row off the screen. The row it sits in scrolls sideways instead.
+ */
+@Composable
+fun ChipLabel(text: String) = Text(text, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
+
 /** A small rounded tag. */
 @Composable
 fun Tag(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant, modifier: Modifier = Modifier) {
