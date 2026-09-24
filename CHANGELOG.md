@@ -22,6 +22,11 @@
   music run leaves a track as well, so a gallery of images was getting buried in icons. It now
   offers the groups it actually holds — Pictures, Audio, Notes, All, with counts — and opens on
   the pictures. Nothing is hidden; a note tile shows its first line instead of a bare icon.
+- **Use what you already made.** Any field that takes a photo can now take one straight from the
+  server's own results, not just from the phone: a gallery button on the field, a sheet of what
+  the server has, one tap. The file never leaves the server — ComfyUI reads it out of the output
+  folder — so "upscale the thing I just made" costs no upload. Reference photos can come from
+  there too.
 - **The button says what it does.** "Restore" on SUPIR, "Upscale" on the upscaler, "Run" everywhere else.
 
 ## 1.0.1 — 2026-09-23

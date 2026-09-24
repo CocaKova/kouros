@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Casino
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -87,6 +88,8 @@ fun FieldControl(
     session: ServerSession,
     uploading: Boolean,
     onPickMedia: () -> Unit,
+    /** Opens the server's own results for this field; null when there is no server to ask. */
+    onPickFromServer: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     control: String? = field.control,
     onControl: (String) -> Unit = {},
@@ -95,7 +98,7 @@ fun FieldControl(
 ) {
     val spec = field.spec
     when {
-        field.role == FieldRole.MEDIA -> MediaField(field, value, session, uploading, onPickMedia, modifier)
+        field.role == FieldRole.MEDIA -> MediaField(field, value, session, uploading, onPickMedia, onPickFromServer, modifier)
         field.role == FieldRole.SEED -> SeedField(field, value, onChange, modifier, control ?: "randomize", onControl)
         spec.isMultilineText() -> PromptField(field, value, onChange, modifier, onEnhance)
         spec.widgetType == "BOOLEAN" -> ToggleField(field, value, onChange, modifier)
@@ -299,13 +302,27 @@ private fun ChoiceField(field: FormField, value: JsonElement, onChange: (JsonEle
 
 /** An input file: shows what the server has, and replaces it with something from the phone. */
 @Composable
-private fun MediaField(field: FormField, value: JsonElement, session: ServerSession, uploading: Boolean, onPick: () -> Unit, modifier: Modifier) {
+private fun MediaField(
+    field: FormField,
+    value: JsonElement,
+    session: ServerSession,
+    uploading: Boolean,
+    onPick: () -> Unit,
+    onPickFromServer: (() -> Unit)?,
+    modifier: Modifier,
+) {
     val raw = (value as? JsonPrimitive)?.contentOrNull ?: ""
     val ref = inputRef(raw)
     val kind = Outputs.byExtension(ref.filename) ?: MediaKind.IMAGE
     val context = LocalContext.current
     Column(modifier) {
-        Label(field)
+        Label(field) {
+            onPickFromServer?.let { go ->
+                IconButton(onClick = go, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.PhotoLibrary, "Choose something you made", tint = Accent.clay, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
         Spacer(Modifier.height(6.dp))
         Surface(
             onClick = onPick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer,
@@ -324,7 +341,14 @@ private fun MediaField(field: FormField, value: JsonElement, session: ServerSess
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(ref.filename.ifEmpty { "Nothing selected" }, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(if (uploading) "Uploading…" else "Tap to choose from this phone", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        when {
+                            uploading -> "Uploading…"
+                            ref.type == "output" || ref.type == "temp" -> "Made on the server"
+                            else -> "Tap to choose from this phone"
+                        },
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

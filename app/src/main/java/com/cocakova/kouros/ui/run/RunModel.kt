@@ -250,6 +250,15 @@ class RunModel(private val workflowKey: String, private val remixRunId: String?)
     }
 
     /** Adds a photo as the next reference image. */
+    /** A reference photo the server already has — its own result, by annotated name. */
+    fun addServerReference(path: String) {
+        _state.update { st ->
+            if (st !is RunScreenState.Ready || st.refs.size >= st.references.capacity) st
+            else withIssues(st.copy(refs = st.refs + path))
+        }
+        saveDraft()
+    }
+
     fun addReference(uri: Uri) = viewModelScope.launch {
         val slot = "ref:${uri}"
         _uploading.update { it + slot }
